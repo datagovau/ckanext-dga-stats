@@ -150,8 +150,8 @@ class Stats(object):
         res = connection.execute("SELECT 'Total Organisations', count(*) from \"group\" where type = 'organization' and state = 'active' union \
 				select 'Total Datasets', count(*) from package where package.type='dataset' and package.state='active' and package.private = 'f' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
 				select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
-				select 'Total Data Files/Resources', count(*) from resource where state='active' union \
-				select 'Total Machine Readable/Data API Resources', count(*) from resource where state='active' and (webstore_url = 'active' or format='wms')").fetchall();
+				select 'Total Data Files/Resources', count(*) from resource where state='active' and package_id not in (select package_id from package_extra where key = 'harvest_portal') union \
+				select 'Total Machine Readable/Data API Resources', count(*) from resource where state='active' and (webstore_url = 'active' or format='wms') and package_id not in (select package_id from package_extra where key = 'harvest_portal')").fetchall();
         return res
 
 
