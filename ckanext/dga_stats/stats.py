@@ -3,7 +3,7 @@ import datetime
 from pylons import config
 from sqlalchemy import Table, select, func, and_
 from sqlalchemy.sql.expression import text
-
+import ckanext.datastore.db as datastore_db
 import ckan.plugins as p
 import ckan.model as model
 
@@ -151,8 +151,13 @@ class Stats(object):
 				select 'Total Datasets', count(*) from package where package.type='dataset' and package.state='active' and package.private = 'f' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
 				select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
 				select 'Total Data Files/Resources', count(*) from resource where state='active' and package_id not in (select package_id from package_extra where key = 'harvest_portal') union \
-				select 'Total Machine Readable/Data API Resources', count(*) from resource where state='active' and (webstore_url = 'active' or format='wms') and package_id not in (select package_id from package_extra where key = 'harvest_portal')").fetchall();
-        return res
+				select 'Total Machine Readable/Data API Resources', count(*) from resource where state='active' and format='wms' and package_id not in (select package_id from package_extra where key = 'harvest_portal')").fetchall();
+        result = []
+        for measure,value in res:
+            if measure == 'Total Machine Readable/Data API Resources':
+                value += len(datastore_db.get_all_resources_ids_in_datastore())
+            result.append((measure,value))
+        return result
 
 
     @classmethod

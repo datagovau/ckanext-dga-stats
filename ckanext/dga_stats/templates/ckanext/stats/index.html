@@ -276,9 +276,11 @@
           <tbody>
             {% for measure,value in c.summary_stats %}
 		{%  if 'Archived' not in measure or h.check_access('sysadmin') %}
+
               <tr>
                 <td>{{measure}}</td>
                 <td class="metric">{{ value }}</td>
+
               </tr>
 		{% endif %}
             {% endfor %}
