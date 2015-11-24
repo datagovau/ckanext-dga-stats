@@ -77,7 +77,6 @@ class Stats(object):
     def by_org(cls, limit=10):
         connection = model.Session.connection()
         res = connection.execute("select package.owner_org, package.private, count(*) from package \
-		inner join (select distinct package_id from resource_group inner join resource on resource.resource_group_id = resource_group.id) as r on package.id = r.package_id \
 		inner join \"group\" on package.owner_org = \"group\".id \
 		where package.state='active'\
 		group by package.owner_org,\"group\".name, package.private \
@@ -90,8 +89,7 @@ class Stats(object):
     def res_by_org(cls, limit=10):
         connection = model.Session.connection()
         reses = connection.execute("select owner_org,format,count(*) from \
-		resource inner join resource_group on resource.resource_group_id = resource_group.id \
-		inner join package on resource_group.package_id = package.id group by owner_org,format order by count desc;").fetchall();
+		resource inner join package on resource.package_id = package.id group by owner_org,format order by count desc;").fetchall();
         group_ids = []
         group_tab = {}
         group_spatial = {}
@@ -116,7 +114,6 @@ class Stats(object):
     def top_active_orgs(cls, limit=10):
         connection = model.Session.connection()
         res = connection.execute("select package.owner_org, count(*) from package \
-		inner join (select distinct package_id from resource_group inner join resource on resource.resource_group_id = resource_group.id) as r on package.id = r.package_id \
 		inner join \"group\" on package.owner_org = \"group\".id \
                 inner join (select distinct object_id from activity where activity.timestamp > (now() - interval '60 day')) \
                 latestactivities on latestactivities.object_id = package.id \
@@ -151,8 +148,8 @@ class Stats(object):
         res = connection.execute("SELECT 'Total Organisations', count(*) from \"group\" where type = 'organization' and state = 'active' union \
 				select 'Total Datasets', count(*) from package where package.type='dataset' and package.state='active' and package.private = 'f' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
 				select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
-				select 'Total Data Files/Resources', count(*) from resource INNER JOIN resource_group on resource.resource_group_id = resource_group.id where resource.state='active' and package_id not IN (select distinct package_id from package INNER JOIN  package_extra on package.id = package_extra.package_id where key = 'harvest_portal') union \
-				select 'Total Data API Resources', count(*) from resource INNER JOIN resource_group on resource.resource_group_id = resource_group.id where resource.state='active' and (webstore_url = 'active' or format='wms') and package_id not IN (select distinct package_id from package INNER JOIN package_extra on package.id = package_extra.package_id where key = 'harvest_portal')").fetchall();
+				select 'Total Data Files/Resources', count(*) from resource where resource.state='active' and package_id not IN (select distinct package_id from package INNER JOIN  package_extra on package.id = package_extra.package_id where key = 'harvest_portal') union \
+				select 'Total Data API Resources', count(*) from resource where resource.state='active' and (webstore_url = 'active' or format='wms') and package_id not IN (select distinct package_id from package INNER JOIN package_extra on package.id = package_extra.package_id where key = 'harvest_portal')").fetchall();
         return res
 
 
