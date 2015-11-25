@@ -6,3 +6,7 @@ Fork of CKAN's built-in Statistics plugin modified for data.gov.au
 * Add summary page
 * Add activity summary page
 * Add organisation public/private dataset count page
+
+## System Requirements
+
+* CKAN 2.4+
