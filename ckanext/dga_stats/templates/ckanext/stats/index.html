@@ -200,7 +200,6 @@
             <tr>
               <th data-type="date" data-value="{{ row.date.strftime("%s") }}"><time datetime="{{ row.date.isoformat() }}">{{ h.render_datetime(row.date) }}</time></th>
               <td>{{ row.total_revisions }}</td>
-              <td>{{ c.raw_new_datasets[loop.index0].new_packages }}</td>
             </tr>
           {% endfor %}
         </tbody>
