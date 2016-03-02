@@ -289,11 +289,13 @@ class RevisionStats(object):
         @return: Returns list of revisions and date of them, in
                  format: [(id, date), ...]
         '''
-        package_revision = table('package_revision')
-        revision = table('revision')
-        s = select([package_revision.c.id, revision.c.timestamp], from_obj=[package_revision.join(revision)]).order_by(
-            revision.c.timestamp)
-        res = model.Session.execute(s).fetchall()  # [(id, datetime), ...]
+        connection = model.Session.connection()
+        res = connection.execute(""
+                                 "SELECT package_revision.id, revision.timestamp FROM package_revision "
+                                 "JOIN revision ON revision.id = package_revision.revision_id "
+                                 "WHERE package_revision.id in (select distinct id from package where package.type='dataset' and package.private = 'f') "
+                                 "and package_revision.id not in (select distinct package_id from package_extra where key = 'harvest_portal') "
+                                 "ORDER BY revision.timestamp asc;").fetchall()
         return res
 
     @classmethod
