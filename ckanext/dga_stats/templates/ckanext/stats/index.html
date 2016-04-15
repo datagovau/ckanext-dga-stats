@@ -42,7 +42,7 @@
           </tbody>
         </table>
       {% else %}
-        <p class="empty">{{ _('No created datasets') }}</p>
+        <p class="empty">{{ _('No changes in the last %s days' | format(c.recent_period)) }}</p>
       {% endif %}
     </section>
       <section id="stats-recent-updated-datasets" class="module-content tab-content">
@@ -76,7 +76,7 @@
               </tbody>
           </table>
           {% else %}
-          <p class="empty">{{ _('No created datasets') }}</p>
+          <p class="empty">{{ _('No changes in the last %s days' | format(c.recent_period)) }}</p>
           {% endif %}
       </section>
       {% if h.check_access('sysadmin') %}
@@ -380,11 +380,11 @@
         <li class="nav-item"><a href="#stats-total-datasets" data-toggle="tab">{{ _('Total Number of Datasets') }}</a></li>
         <li class="nav-item"><a href="#stats-dataset-revisions" data-toggle="tab">{{ _('Dataset Revisions per Week') }}</a></li>
         <li class="nav-item"><a href="#stats-most-edited" data-toggle="tab">{{ _('Most Edited Datasets') }}</a></li>
-        <li class="nav-item"><a href="#stats-by-org" data-toggle="tab">{{ _('Datasets by Organization') }}</a></li> 
-        <li class="nav-item"><a href="#stats-res-by-org" data-toggle="tab">{{ _('Resources by Organization') }}</a></li> 
+        <li class="nav-item"><a href="#stats-by-org" data-toggle="tab">{{ _('Datasets by Organization') }}</a></li>
+        <li class="nav-item"><a href="#stats-res-by-org" data-toggle="tab">{{ _('Resources by Organization') }}</a></li>
         <li class="nav-item"><a href="#stats-activity-org" data-toggle="tab">{{ _('Most Active Organisations') }}</a></li>
         <li class="nav-item"><a href="/site-usage">Site Analytics</a></li>
-        <li class="nav-item active"><a href="#stats-summary" data-toggle="tab">{{ _('Summary') }}</a></li> 
+        <li class="nav-item active"><a href="#stats-summary" data-toggle="tab">{{ _('Summary') }}</a></li>
       </ul>
     </nav>
   </section>

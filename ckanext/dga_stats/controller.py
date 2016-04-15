@@ -39,6 +39,7 @@ class StatsController(BaseController):
         c.new_packages_by_week = self.timed(rev_stats.get_by_week,'new_packages')
         c.num_packages_by_week = self.timed(rev_stats.get_num_packages_by_week)
         c.package_revisions_by_week = self.timed(rev_stats.get_by_week,'package_revisions')
+        c.recent_period = stats.recent_period
 
         # Used in the legacy CKAN templates.
         c.packages_by_week = []
