@@ -274,8 +274,14 @@ class Stats(object):
 
         def fetch_user_access_list():
             connection = model.Session.connection()
-            return connection.execute(
-                "select name,sysadmin,role from user_object_role right outer join \"user\" on user_object_role.user_id = \"user\".id where name not in ('logged_in','visitor') group by name,sysadmin,role order by sysadmin desc, role asc;").fetchall();
+            res = connection.execute(
+                "select \"user\".id ,sysadmin,capacity,max(last_active),array_agg(\"group\".name) member_of_orgs from \"user\" "
+                " left outer join member on member.table_id = \"user\".id " \
+                " left OUTER JOIN (select max(timestamp) last_active,user_id from activity group by user_id) a on \"user\".id = a.user_id " \
+                " left outer join \"group\" on member.group_id = \"group\".id  where sysadmin = 't' or (capacity is not null and member.state = 'active')" \
+                " group by \"user\".id ,sysadmin,capacity order by max(last_active) desc;").fetchall()
+            return[(model.Session.query(model.User).get(unicode(user_id)), sysadmin, role, last_active, orgs) for
+                      (user_id, sysadmin, role, last_active, orgs) in res]
 
         if cache_enabled:
             key = 'user_access_list'
