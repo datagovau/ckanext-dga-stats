@@ -2,321 +2,360 @@
 
 {% block subtitle %}{{ _("Site Statistics") }}{% endblock %}
 {% block breadcrumb_content %}
-  <li class="active"><h3>{{ 'Statistics' }}<h3></li>
+<li class="active">
+    <h3>{{ 'Statistics' }}<h3>
+</li>
 {% endblock %}
 
 {% block primary_content %}
-  <article class="module">
-{% if h.check_access('sysadmin') %}
+<article class="module">
+    {% if h.check_access('sysadmin') %}
     <section id="stats-activity-counts" class="module-content tab-content">
-      <h2>{{ _('Site Activity Log') }}</h2>
-      {% if c.activity_counts %}
+        <h2>{{ _('Site Activity Log') }}</h2>
+        {% if c.activity_counts %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Month') }}</th>
-              <th>{{ _('Activity Type') }}</th>
-              <th class="metric">{{ _('Count') }}</th>
+                <th>{{ _('Month') }}</th>
+                <th>{{ _('Activity Type') }}</th>
+                <th class="metric">{{ _('Count') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for month, type, count in c.activity_counts %}
-              <tr>
+            <tr>
                 <td>{{ month }}</td>
                 <td>{{ type }}</td>
                 <td class="metric">{{ count }}</td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
     <section id="stats-recent-datasets" class="module-content tab-content">
-      <h2>{{ _('Recent Datasets') }}</h2>
-      {% if c.recent_datasets %}
+        <h2>{{ _('Recent Datasets') }}</h2>
+        {% if c.recent_datasets %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Date') }}</th>
-              <th>{{ _('Dataset') }}</th>
-              <th>{{ _('New/Modified') }}</th>
+                <th>{{ _('Date') }}</th>
+                <th>{{ _('Dataset') }}</th>
+                <th>{{ _('New/Modified') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for date,package,newmodified in c.recent_datasets %}
-              <tr>
+            <tr>
                 <td>{{ date }}</td>
-                <td>{{ h.link_to(package.title or package.name, h.url_for(controller='package', action='read', id=package.name)) }}</td>
+                <td>{{ h.link_to(package.title or package.name, h.url_for(controller='package', action='read',
+                    id=package.name)) }}
+                </td>
                 <td>{{ newmodified }}</td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
     <section id="stats-user-access-list" class="module-content tab-content">
-      <h2>{{ _('User Access List') }}</h2>
-      {% if c.user_access_list %}
+        <h2>{{ _('User Access List') }}</h2>
+        {% if c.user_access_list %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Username') }}</th>
-              <th>{{ _('Sysadmin') }}</th>
-              <th class="metric">{{ _('Organisational Role') }}</th>
+                <th>{{ _('Username') }}</th>
+                <th>{{ _('Sysadmin') }}</th>
+                <th class="metric">{{ _('Organisational Role') }}</th>
             </tr>
-          </thead>
-          <tbody>
-            {% for username,sysadmin,role in c.user_access_list %}
-              <tr>
-                <td>{{ username }}</td>
-                <td>{{ sysadmin }}</td>
-                <td>{{ role }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
-    </section>
-{% endif %}
-    <section id="stats-total-datasets" class="module-content tab-content active">
-      <h2>{{ _('Total number of Datasets') }}</h2>
+            </thead>
+            <tbody>
+            {% for user,sysadmin,role,last_activity,orgs in c.user_access_list %}
+            {% if year == last_activity.year %}
+            <tr>
+                <td>{{ h.link_to(user.display_name or user.name, h.url_for(controller='user', action='read',
+                    id=user.name)) }}
 
-      {% set xaxis = {'mode': 'time', 'timeformat': '%y-%b'} %}
-      {% set yaxis = {'min': 0} %}
-      <table class="table table-chunky table-bordered table-striped" data-module="plot" data-module-xaxis="{{ h.dump_json(xaxis) }}" data-module-yaxis="{{ h.dump_json(yaxis) }}">
-        <thead>
-          <tr>
-            <th>{{ _("Date") }}</th>
-            <th>{{ _("Total datasets") }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in c.raw_packages_by_week %}
-            <tr>
-              <th data-type="date" data-value="{{ row.date.strftime("%s") }}"><time datetime="{{ row.date.isoformat() }}">{{ h.render_datetime(row.date) }}</time></th>
-              <td>{{ row.total_packages }}</td>
+                </td>
+                <td>{{ sysadmin }}</td>
+                <td>{{ role }}<br/>
+                    {% if orgs[0] %}
+                    {% for org in orgs %}
+                    {{ h.link_to(org, h.url_for(controller='organization', action='read', id=org)) }}
+                    {% endfor %}
+                    {% endif %}
+                </td>
+                <td>{{ last_activity }}</td>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">{{ _('No groups') }}</p>
+        {% endif %}
+    </section>
+    {% endif %}
+    <section id="stats-total-datasets" class="module-content tab-content active">
+        <h2>{{ _('Total number of Datasets') }}</h2>
+
+        {% set xaxis = {'mode': 'time', 'timeformat': '%y-%b'} %}
+        {% set yaxis = {'min': 0} %}
+        <table class="table table-chunky table-bordered table-striped" data-module="plot"
+               data-module-xaxis="{{ h.dump_json(xaxis) }}" data-module-yaxis="{{ h.dump_json(yaxis) }}">
+            <thead>
+            <tr>
+                <th>{{ _("Date") }}</th>
+                <th>{{ _("Total datasets") }}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in c.raw_packages_by_week %}
+            <tr>
+                <th data-type="date" data-value="{{ row.date.strftime(" %s
+                ") }}">
+                <time datetime="{{ row.date.isoformat() }}">{{ h.render_datetime(row.date) }}</time>
+                </th>
+                <td>{{ row.total_packages }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </section>
 
     <section id="stats-dataset-revisions" class="module-content tab-content">
-      <h2>{{ _('Dataset Revisions per Week') }}</h2>
+        <h2>{{ _('Dataset Revisions per Week') }}</h2>
 
-      {% set xaxis = {'mode': 'time', 'timeformat': '%y-%b'} %}
-      {% set lines = {'fill': 1} %}
-      <table class="table table-chunky table-bordered table-striped" data-module="plot" data-module-xaxis="{{ h.dump_json(xaxis) }}" data-module-lines="{{ h.dump_json(lines) }}">
-        <thead>
-          <tr>
-            <th>{{ _("Date") }}</th>
-            <th>{{ _("All dataset revisions") }}</th>
-            <th>{{ _("New datasets") }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in c.raw_all_package_revisions %}
+        {% set xaxis = {'mode': 'time', 'timeformat': '%y-%b'} %}
+        {% set lines = {'fill': 1} %}
+        <table class="table table-chunky table-bordered table-striped" data-module="plot"
+               data-module-xaxis="{{ h.dump_json(xaxis) }}" data-module-lines="{{ h.dump_json(lines) }}">
+            <thead>
             <tr>
-              <th data-type="date" data-value="{{ row.date.strftime("%s") }}"><time datetime="{{ row.date.isoformat() }}">{{ h.render_datetime(row.date) }}</time></th>
-              <td>{{ row.total_revisions }}</td>
-              <td>{{ c.raw_new_datasets[loop.index0].new_packages }}</td>
+                <th>{{ _("Date") }}</th>
+                <th>{{ _("All dataset revisions") }}</th>
+                <th>{{ _("New datasets") }}</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+            {% for row in c.raw_all_package_revisions %}
+            <tr>
+                <th data-type="date" data-value="{{ row.date.strftime(" %s
+                ") }}">
+                <time datetime="{{ row.date.isoformat() }}">{{ h.render_datetime(row.date) }}</time>
+                </th>
+                <td>{{ row.total_revisions }}</td>
+                <td>{{ c.raw_new_datasets[loop.index0].new_packages }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </section>
 
 
     <section id="stats-most-edited" class="module-content tab-content">
-      <h2>{{ _('Most Edited Datasets') }}</h2>
-      {% if c.most_edited_packages %}
+        <h2>{{ _('Most Edited Datasets') }}</h2>
+        {% if c.most_edited_packages %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Dataset') }}</th>
-              <th class="metric">{{ _('Number of edits') }}</th>
+                <th>{{ _('Dataset') }}</th>
+                <th class="metric">{{ _('Number of edits') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for package, edits in c.most_edited_packages %}
-              <tr py:for="package, edits in c.most_edited_packages">
-                <td>{{ h.link_to(package.title or package.name, h.url_for(controller='package', action='read', id=package.name)) }}</td>
+            <tr py:for="package, edits in c.most_edited_packages">
+                <td>{{ h.link_to(package.title or package.name, h.url_for(controller='package', action='read',
+                    id=package.name)) }}
+                </td>
                 <td class="metric">{{ edits }}</td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No edited datasets') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
 
     <section id="stats-largest-groups" class="module-content tab-content">
-      <h2>{{ _('Largest Groups') }}</h2>
-      {% if c.largest_groups %}
+        <h2>{{ _('Largest Groups') }}</h2>
+        {% if c.largest_groups %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Group') }}</th>
-              <th class="metric">{{ _('Number of datasets') }}</th>
+                <th>{{ _('Group') }}</th>
+                <th class="metric">{{ _('Number of datasets') }}</th>
             </tr>
-          </thead>
-         <tbody>
+            </thead>
+            <tbody>
             {% for group, num_packages in c.largest_groups %}
-              <tr>
-                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='group', action='read', id=group.name)) }}</td>
+            <tr>
+                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='group', action='read', id=group.name))
+                    }}
+                </td>
                 <td class="metric">{{ num_packages }}</td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
-       <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% else %}
+        <p class="empty">{{ _('No groups') }}</p>
+        {% endif %}
     </section>
     <section id="stats-by-org" class="module-content tab-content">
-      <h2>{{ _('Datasets by Organization') }}</h2>
-      {% if c.by_org %}
+        <h2>{{ _('Datasets by Organization') }}</h2>
+        {% if c.by_org %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Organisation') }}</th>
-              <th>{{ _('Public/Archived') }}</th>
-              <th class="metric">{{ _('Number of datasets') }}</th>
+                <th>{{ _('Organisation') }}</th>
+                <th>{{ _('Public/Archived') }}</th>
+                <th class="metric">{{ _('Number of datasets') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for group,private, num_packages in c.by_org %}
-		{% if private == False or h.check_access('sysadmin') %}
-              <tr>
-                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='organization', action='read', id=group.name)) }}</td>
-		{% if private == True %}
-	                <td>Archived</td>
-		{% else %}
-	                <td>Public</td>
-		{% endif %}
+            {% if private == False or h.check_access('sysadmin') %}
+            <tr>
+                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='organization', action='read',
+                    id=group.name)) }}
+                </td>
+                {% if private == True %}
+                <td>Archived</td>
+                {% else %}
+                <td>Public</td>
+                {% endif %}
                 <td class="metric">{{ num_packages }}</td>
-              </tr>
-		{% endif %}
+            </tr>
+            {% endif %}
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
     <section id="stats-res-by-org" class="module-content tab-content">
-      <h2>{{ _('Resources by Organization') }}</h2>
-      {% if c.res_by_org %}
+        <h2>{{ _('Resources by Organization') }}</h2>
+        {% if c.res_by_org %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Organisation') }}</th>
-              <th>{{ _('Tabular') }}</th>
-              <th>{{ _('Spatial') }}</th>
-              <th>{{ _('Other') }}</th>
-              <th class="metric">{{ _('Total') }}</th>
+                <th>{{ _('Organisation') }}</th>
+                <th>{{ _('Tabular') }}</th>
+                <th>{{ _('Spatial') }}</th>
+                <th>{{ _('Other') }}</th>
+                <th class="metric">{{ _('Total') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for group,t,s,o,tot in c.res_by_org %}
-              <tr>
-                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='organization', action='read', id=group.name)) }}</td>
+            <tr>
+                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='organization', action='read',
+                    id=group.name)) }}
+                </td>
                 <td>{{ t }}</td>
                 <td>{{ s }}</td>
                 <td>{{ o }}</td>
                 <td class="metric">{{ tot }}</td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
     <section id="stats-activity-org" class="module-content tab-content">
-      <h2>{{ _('Most Active Organisations') }}</h2>
-      {% if c.top_active_orgs %}
+        <h2>{{ _('Most Active Organisations') }}</h2>
+        {% if c.top_active_orgs %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Organisation') }}</th>
-              <th class="metric">{{ _('Number of datasets updated recently') }}</th>
+                <th>{{ _('Organisation') }}</th>
+                <th class="metric">{{ _('Number of datasets updated recently') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for group, num_packages in c.top_active_orgs %}
-              <tr>
-                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='organization', action='read', id=group.name)) }}</td>
+            <tr>
+                <td>{{ h.link_to(group.title or group.name, h.url_for(controller='organization', action='read',
+                    id=group.name)) }}
+                </td>
                 <td class="metric">{{ num_packages }}</td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
     <section id="stats-summary" class="module-content tab-content">
-      <h2>{{ _('Summary') }}</h2>
-      {% if c.summary_stats %}
+        <h2>{{ _('Summary') }}</h2>
+        {% if c.summary_stats %}
         <table class="table table-chunky table-bordered table-striped">
-          <thead>
+            <thead>
             <tr>
-              <th>{{ _('Measure') }}</th>
-              <th class="metric">{{ _('Value') }}</th>
+                <th>{{ _('Measure') }}</th>
+                <th class="metric">{{ _('Value') }}</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for measure,value in c.summary_stats %}
-		{%  if 'Archived' not in measure or h.check_access('sysadmin') %}
+            {% if 'Archived' not in measure or h.check_access('sysadmin') %}
 
-              <tr>
+            <tr>
                 <td>{{measure}}</td>
                 <td class="metric">{{ value }}</td>
 
-              </tr>
-		{% endif %}
+            </tr>
+            {% endif %}
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      {% else %}
+        {% else %}
         <p class="empty">{{ _('No groups') }}</p>
-      {% endif %}
+        {% endif %}
     </section>
-  </article>
+</article>
 {% endblock %}
 
 {% block secondary_content %}
-  <section class="module module-narrow">
+<section class="module module-narrow">
     <h2 class="module-heading"><i class="icon-bar-chart icon-medium"></i> {{ _('Statistics Menu') }}</h2>
     <nav data-module="stats-nav">
-      <ul class="unstyled nav nav-simple">
-{% if h.check_access('sysadmin') %}
-        <li class="nav-item"><a href="#stats-recent-datasets" data-toggle="tab">{{ _('Recent Datasets') }}</a></li>
-        <li class="nav-item"><a href="#stats-user-access-list" data-toggle="tab">{{ _('User Access List') }}</a></li>
-{% endif %}
-        <li class="nav-item"><a href="#stats-total-datasets" data-toggle="tab">{{ _('Total Number of Datasets') }}</a></li>
-        <li class="nav-item"><a href="#stats-dataset-revisions" data-toggle="tab">{{ _('Dataset Revisions per Week') }}</a></li>
-        <li class="nav-item"><a href="#stats-most-edited" data-toggle="tab">{{ _('Most Edited Datasets') }}</a></li>
-        <li class="nav-item"><a href="#stats-by-org" data-toggle="tab">{{ _('Datasets by Organization') }}</a></li> 
-        <li class="nav-item"><a href="#stats-res-by-org" data-toggle="tab">{{ _('Resources by Organization') }}</a></li> 
-        <li class="nav-item"><a href="#stats-activity-org" data-toggle="tab">{{ _('Most Active Organisations') }}</a></li>
-        <li class="nav-item"><a href="//data.gov.au/site-usage">Site Analytics</a></li>
-        <li class="nav-item active"><a href="#stats-summary" data-toggle="tab">{{ _('Summary') }}</a></li> 
-      </ul>
+        <ul class="unstyled nav nav-simple">
+            {% if h.check_access('sysadmin') %}
+            <li class="nav-item"><a href="#stats-recent-datasets" data-toggle="tab">{{ _('Recent Datasets') }}</a></li>
+            <li class="nav-item"><a href="#stats-user-access-list" data-toggle="tab">{{ _('User Access List') }}</a>
+            </li>
+            {% endif %}
+            <li class="nav-item"><a href="#stats-total-datasets" data-toggle="tab">{{ _('Total Number of Datasets')
+                }}</a></li>
+            <li class="nav-item"><a href="#stats-dataset-revisions" data-toggle="tab">{{ _('Dataset Revisions per Week')
+                }}</a></li>
+            <li class="nav-item"><a href="#stats-most-edited" data-toggle="tab">{{ _('Most Edited Datasets') }}</a></li>
+            <li class="nav-item"><a href="#stats-by-org" data-toggle="tab">{{ _('Datasets by Organization') }}</a></li>
+            <li class="nav-item"><a href="#stats-res-by-org" data-toggle="tab">{{ _('Resources by Organization') }}</a>
+            </li>
+            <li class="nav-item"><a href="#stats-activity-org" data-toggle="tab">{{ _('Most Active Organisations')
+                }}</a></li>
+            <li class="nav-item"><a href="//data.gov.au/site-usage">Site Analytics</a></li>
+            <li class="nav-item active"><a href="#stats-summary" data-toggle="tab">{{ _('Summary') }}</a></li>
+        </ul>
     </nav>
-  </section>
+</section>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
+{{ super() }}
 {#
 Hellish hack to get excanvas to work in IE8. We disable html5shiv from
 overriding the createElement() method on this page.
