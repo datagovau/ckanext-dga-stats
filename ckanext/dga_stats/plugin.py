@@ -1,14 +1,31 @@
 from logging import getLogger
 
-import ckan.plugins as p
-
 log = getLogger(__name__)
+
+import ckan.plugins as p
+import datetime as datetime
+
+def date_range():
+    return list(reversed(range(2013,datetime.datetime.now().year+1)))
 
 class StatsPlugin(p.SingletonPlugin):
     '''Stats plugin.'''
 
     p.implements(p.IRoutes, inherit=True)
     p.implements(p.IConfigurer, inherit=True)
+    p.implements(p.ITemplateHelpers)
+
+    def get_helpers(self):
+        '''Register the most_popular_groups() function above as a template
+        helper function.
+
+        '''
+        # Template helper function names should begin with the name of the
+        # extension they belong to, to avoid clashing with functions from
+        # other extensions.
+        return {
+            'date_range': date_range
+        }
 
     def after_map(self, map):
         map.connect('stats', '/stats',
