@@ -227,16 +227,18 @@ class Stats(object):
             result = []
             result.append(('Total Organisations', len(logic.get_action('organization_list')({}, {}))))
             result.append(('Total Datasets', logic.get_action('package_search')({}, {"rows": 1})['count']))
+            result.append(('Total Machine Readable/Data API Resources',
+                           logic.get_action('resource_search')({}, {"query": ["format:wms"]})['count'] + len(
+                               datastore_db.get_all_resources_ids_in_datastore())))
 
             res = connection.execute("select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
                             select 'Total Data Files/Resources', count(*) from resource where state='active' and package_id not in (select package_id from package_extra where key = 'harvest_portal')").fetchall()
 
             for measure, value in res:
-                result.append((measure, value))
-
-            result.append(('Total Machine Readable/Data API Resources',
-                           logic.get_action('resource_search')({}, {"query": ["format:wms"]})['count'] + len(
-                               datastore_db.get_all_resources_ids_in_datastore())))
+                if measure == 'Total Archived Datasets':
+                    result.insert(1, (measure, value))
+                else:
+                    result.append((measure, value))
 
             return result
 

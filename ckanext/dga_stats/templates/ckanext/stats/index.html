@@ -65,15 +65,19 @@
     <section id="stats-user-access-list" class="module-content tab-content">
         <h2>{{ _('User Access List') }}</h2>
         {% if c.user_access_list %}
+        {% for year in h.date_range() %}
+        <h3>{{ year }}</h3>
         <table class="table table-chunky table-bordered table-striped">
             <thead>
             <tr>
                 <th>{{ _('Username') }}</th>
                 <th>{{ _('Sysadmin') }}</th>
                 <th class="metric">{{ _('Organisational Role') }}</th>
+                <th class="metric">Last Activity</th>
             </tr>
             </thead>
             <tbody>
+
             {% for user,sysadmin,role,last_activity,orgs in c.user_access_list %}
             {% if year == last_activity.year %}
             <tr>
@@ -93,8 +97,10 @@
             </tr>
             {% endif %}
             {% endfor %}
+
             </tbody>
         </table>
+        {% endfor %}
         {% else %}
         <p class="empty">{{ _('No groups') }}</p>
         {% endif %}
