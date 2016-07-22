@@ -153,15 +153,16 @@ class Stats(object):
                     group_spatial[group_id] = group_spatial[group_id] + count
                 else:
                     group_other[group_id] = group_other[group_id] + count
-            return [(model.Session.query(model.Group).get(unicode(group_id)), group_tab[group_id], group_spatial[group_id],
-                     group_other[group_id], group_tab[group_id] + group_spatial[group_id] + group_other[group_id]) for
-                    group_id in group_ids]
+            return [
+                (model.Session.query(model.Group).get(unicode(group_id)), group_tab[group_id], group_spatial[group_id],
+                 group_other[group_id], group_tab[group_id] + group_spatial[group_id] + group_other[group_id]) for
+                group_id in group_ids]
 
         if cache_enabled:
             key = 'res_by_org'
             res_by_orgs = our_cache.get_value(key=key,
-                                             createfunc=fetch_res_by_org,
-                                             expiretime=cache_default_timeout)
+                                              createfunc=fetch_res_by_org,
+                                              expiretime=cache_default_timeout)
         else:
             res_by_orgs = fetch_res_by_org()
 
@@ -270,20 +271,19 @@ class Stats(object):
 
         return res
 
-
     @classmethod
     def user_access_list(cls):
 
         def fetch_user_access_list():
             connection = model.Session.connection()
-            res = connection.execute(
+            user_res = connection.execute(
                 "select \"user\".id ,sysadmin,capacity,max(last_active),array_agg(\"group\".name) member_of_orgs from \"user\" "
                 " left outer join member on member.table_id = \"user\".id " \
-                " left OUTER JOIN (select max(timestamp) last_active,user_id from activity group by user_id) a on \"user\".id = a.user_id " \
+                " left outer join (select max(timestamp) last_active,user_id from activity group by user_id) a on \"user\".id = a.user_id " \
                 " left outer join \"group\" on member.group_id = \"group\".id  where sysadmin = 't' or (capacity is not null and member.state = 'active')" \
                 " group by \"user\".id ,sysadmin,capacity order by max(last_active) desc;").fetchall()
-            return[(model.Session.query(model.User).get(unicode(user_id)), sysadmin, role, last_active, orgs) for
-                      (user_id, sysadmin, role, last_active, orgs) in res]
+            return [(model.Session.query(model.User).get(unicode(user_id)), sysadmin, role, last_active, orgs) for
+                    (user_id, sysadmin, role, last_active, orgs) in user_res]
 
         if cache_enabled:
             key = 'user_access_list'
@@ -308,8 +308,9 @@ class Stats(object):
                                                                                               activity.c.activity_type).order_by(
                 func.max(activity.c.timestamp))
             result = model.Session.execute(s).fetchall()
-            return [(datetime2date(timestamp), model.Session.query(model.Package).get(unicode(package_id)), activity_type)
-                    for timestamp, package_id, activity_type in result]
+            return [
+                (datetime2date(timestamp), model.Session.query(model.Package).get(unicode(package_id)), activity_type)
+                for timestamp, package_id, activity_type in result]
 
         if cache_enabled:
             key = 'recent_datasets'
@@ -371,10 +372,12 @@ class RevisionStats(object):
         @return: Returns list of revisions and date of them, in
                  format: [(id, date), ...]
         '''
+
         def fetch_package_revisions():
             package_revision = table('package_revision')
             revision = table('revision')
-            s = select([package_revision.c.id, revision.c.timestamp], from_obj=[package_revision.join(revision)]).order_by(
+            s = select([package_revision.c.id, revision.c.timestamp],
+                       from_obj=[package_revision.join(revision)]).order_by(
                 revision.c.timestamp)
             return model.Session.execute(s).fetchall()  # [(id, datetime), ...]
 
