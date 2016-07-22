@@ -7,8 +7,6 @@ import ckanext.datastore.db as datastore_db
 import ckan.plugins as p
 import ckan.logic as logic
 import ckan.model as model
-from logging import getLogger
-log = getLogger(__name__)
 
 import re
 
@@ -228,18 +226,18 @@ class Stats(object):
             connection = model.Session.connection()
 
             result = []
-            result.append(('Total Organisations', len(logic.get_action('organization_list')({}, {}))))
             result.append(('Total Datasets', logic.get_action('package_search')({}, {"rows": 1})['count']))
             result.append(('Total Machine Readable/Data API Resources',
                            logic.get_action('resource_search')({}, {"query": ["format:wms"]})['count'] + len(
                                datastore_db.get_all_resources_ids_in_datastore())))
+            result.append(('Total Organisations', len(logic.get_action('organization_list')({}, {}))))
 
             res = connection.execute("select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
                             select 'Total Data Files/Resources', count(*) from resource where state='active' and package_id not in (select package_id from package_extra where key = 'harvest_portal')").fetchall()
 
             for measure, value in res:
                 if measure == 'Total Archived Datasets':
-                    result.insert(1, (measure, value))
+                    result.insert(0, (measure, value))
                 else:
                     result.append((measure, value))
 
@@ -295,7 +293,6 @@ class Stats(object):
         else:
             res = fetch_user_access_list()
 
-        log.warn("Access list: %r" % res)
         return res
 
     @classmethod
