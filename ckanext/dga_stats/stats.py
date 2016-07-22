@@ -7,6 +7,8 @@ import ckanext.datastore.db as datastore_db
 import ckan.plugins as p
 import ckan.logic as logic
 import ckan.model as model
+from logging import getLogger
+log = getLogger(__name__)
 
 import re
 
@@ -293,6 +295,7 @@ class Stats(object):
         else:
             res = fetch_user_access_list()
 
+        log.warn("Access list: %r" % res)
         return res
 
     @classmethod
