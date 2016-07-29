@@ -321,7 +321,7 @@ class Stats(object):
                                         "FULL OUTER JOIN (select package_id,key from package_extra "\
                                         "where key = 'harvest_portal') e on e.package_id=package.id "\
                                         "where key is null and private = 'f' and state='active' "\
-                                        "and timestamp > NOW() - interval '{recent_period} day' order by timestamp asc LIMIT {recent_limit};".format(
+                                        "and timestamp > NOW() - interval '{recent_period} day' order by timestamp desc LIMIT {recent_limit};".format(
                                             recent_period=cls.recent_period,
                                             recent_limit=cls.recent_limit)).fetchall()
             r = []
@@ -341,7 +341,7 @@ class Stats(object):
             return r
 
         if cache_enabled:
-            key = 'recent_created_datasets'
+            key = "recent_created_datasets_{0}_{1}".format(cls.recent_period, cls.recent_limit)
             res = our_cache.get_value(key=key,
                                       createfunc=fetch_recent_created_datasets,
                                       expiretime=cache_default_timeout)
@@ -362,7 +362,7 @@ class Stats(object):
                                         "where key is null and activity_type = 'changed package' "\
                                         "and timestamp > NOW() - interval '{recent_period} day' and private = 'f' and state='active'"\
                                         "GROUP BY package.id,user_id,timestamp::date,activity_type "\
-                                        "order by timestamp::date asc LIMIT {recent_limit};".format(
+                                        "order by timestamp::date desc LIMIT {recent_limit};".format(
                                             recent_period=cls.recent_period,
                                             recent_limit=cls.recent_limit)).fetchall()
             r = []
@@ -377,7 +377,7 @@ class Stats(object):
             return r
 
         if cache_enabled:
-            key = 'recent_updated_datasets'
+            key = "recent_updated_datasets_{0}_{1}".format(cls.recent_period, cls.recent_limit)
             res = our_cache.get_value(key=key,
                                       createfunc=fetch_recent_updated_datasets,
                                       expiretime=cache_default_timeout)
