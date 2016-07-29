@@ -14,6 +14,8 @@ cache_enabled = p.toolkit.asbool(config.get('ckanext.stats.cache_enabled', 'True
 if cache_enabled:
     from pylons import cache
 
+    cache_default_timeout = p.toolkit.asint(config.get('ckanext.stats.cache_default_timeout', '86400'))
+    cache_fast_timeout = p.toolkit.asint(config.get('ckanext.stats.cache_fast_timeout', '600'))
     our_cache = cache.get_cache('stats', type='dbm')
 
 DATE_FORMAT = '%Y-%m-%d'
@@ -35,211 +37,354 @@ class Stats(object):
     def top_rated_packages(cls, limit=10):
         # NB Not using sqlalchemy as sqla 0.4 doesn't work using both group_by
         # and apply_avg
-        package = table('package')
-        rating = table('rating')
-        sql = select([package.c.id, func.avg(rating.c.rating), func.count(rating.c.rating)],
-                     from_obj=[package.join(rating)]). \
-            where(package.c.private == 'f'). \
-            group_by(package.c.id). \
-            order_by(func.avg(rating.c.rating).desc(), func.count(rating.c.rating).desc()). \
-            limit(limit)
-        res_ids = model.Session.execute(sql).fetchall()
-        res_pkgs = [(model.Session.query(model.Package).get(unicode(pkg_id)), avg, num) for pkg_id, avg, num in res_ids]
+        def fetch_top_rated_packages():
+            package = table('package')
+            rating = table('rating')
+            sql = select([package.c.id, func.avg(rating.c.rating), func.count(rating.c.rating)],
+                         from_obj=[package.join(rating)]). \
+                where(package.c.private == 'f'). \
+                group_by(package.c.id). \
+                order_by(func.avg(rating.c.rating).desc(), func.count(rating.c.rating).desc()). \
+                limit(limit)
+            res_ids = model.Session.execute(sql).fetchall()
+            return [(model.Session.query(model.Package).get(unicode(pkg_id)), avg, num) for pkg_id, avg, num in res_ids]
+
+        if cache_enabled:
+            key = 'top_rated_packages_limit_%s' % str(limit)
+            res_pkgs = our_cache.get_value(key=key,
+                                           createfunc=fetch_top_rated_packages,
+                                           expiretime=cache_default_timeout)
+        else:
+            res_pkgs = fetch_top_rated_packages()
         return res_pkgs
 
     @classmethod
     def most_edited_packages(cls, limit=10):
-        package_revision = table('package_revision')
-        package = table('package')
-        s = select([package_revision.c.id, func.count(package_revision.c.revision_id)],
-                   from_obj=[package_revision.join(package)]). \
-            where(package.c.private == 'f'). \
-            group_by(package_revision.c.id). \
-            order_by(func.count(package_revision.c.revision_id).desc()). \
-            limit(limit)
-        res_ids = model.Session.execute(s).fetchall()
-        res_pkgs = [(model.Session.query(model.Package).get(unicode(pkg_id)), val) for pkg_id, val in res_ids]
+
+        def fetch_most_edited_packages():
+            package_revision = table('package_revision')
+            package = table('package')
+            s = select([package_revision.c.id, func.count(package_revision.c.revision_id)],
+                       from_obj=[package_revision.join(package)]). \
+                where(package.c.private == 'f'). \
+                group_by(package_revision.c.id). \
+                order_by(func.count(package_revision.c.revision_id).desc()). \
+                limit(limit)
+            res_ids = model.Session.execute(s).fetchall()
+            return [(model.Session.query(model.Package).get(unicode(pkg_id)), val) for pkg_id, val in res_ids]
+
+        if cache_enabled:
+            key = 'most_edited_packages_limit_%s' % str(limit)
+            res_pkgs = our_cache.get_value(key=key,
+                                           createfunc=fetch_most_edited_packages,
+                                           expiretime=cache_default_timeout)
+        else:
+            res_pkgs = fetch_most_edited_packages()
+
         return res_pkgs
 
     @classmethod
     def largest_groups(cls, limit=10):
-        member = table('member')
-        s = select([member.c.group_id, func.count(member.c.table_id)]). \
-            group_by(member.c.group_id). \
-            where(member.c.group_id != None). \
-            where(member.c.table_name == 'package'). \
-            where(member.c.capacity == 'public'). \
-            order_by(func.count(member.c.table_id).desc())
-        # limit(limit)
 
-        res_ids = model.Session.execute(s).fetchall()
-        res_groups = [(model.Session.query(model.Group).get(unicode(group_id)), val) for group_id, val in res_ids]
+        def fetch_largest_groups():
+            member = table('member')
+            s = select([member.c.group_id, func.count(member.c.table_id)]). \
+                group_by(member.c.group_id). \
+                where(member.c.group_id != None). \
+                where(member.c.table_name == 'package'). \
+                where(member.c.capacity == 'public'). \
+                order_by(func.count(member.c.table_id).desc())
+                #limit(limit)
+
+            res_ids = model.Session.execute(s).fetchall()
+            return [(model.Session.query(model.Group).get(unicode(group_id)), val) for group_id, val in res_ids]
+
+        if cache_enabled:
+            key = 'largest_groups_limit_%s' % str(limit)
+            res_groups = our_cache.get_value(key=key,
+                                             createfunc=fetch_largest_groups,
+                                             expiretime=cache_default_timeout)
+        else:
+            res_groups = fetch_largest_groups()
         return res_groups
 
     @classmethod
     def by_org(cls, limit=10):
-        connection = model.Session.connection()
-        res = connection.execute("select package.owner_org, package.private, count(*) from package \
-		inner join \"group\" on package.owner_org = \"group\".id \
-		where package.state='active'\
-		group by package.owner_org,\"group\".name, package.private \
-		order by \"group\".name, package.private;").fetchall();
-        res_groups = [(model.Session.query(model.Group).get(unicode(group_id)), private, val) for group_id, private, val
+
+        def fetch_by_org():
+            connection = model.Session.connection()
+            res = connection.execute("select package.owner_org, package.private, count(*) from package \
+		        inner join \"group\" on package.owner_org = \"group\".id \
+		        where package.state='active'\
+		        group by package.owner_org,\"group\".name, package.private \
+		        order by \"group\".name, package.private;").fetchall();
+            return [(model.Session.query(model.Group).get(unicode(group_id)), private, val) for group_id, private, val
                       in res]
+
+        if cache_enabled:
+            key = 'fetch_by_org'
+            res_groups = our_cache.get_value(key=key,
+                                             createfunc=fetch_by_org,
+                                             expiretime=cache_default_timeout)
+        else:
+            res_groups = fetch_by_org()
+
         return res_groups
 
     @classmethod
     def res_by_org(cls, limit=10):
-        connection = model.Session.connection()
-        reses = connection.execute("select owner_org,format,count(*) from \
-		resource inner join package on resource.package_id = package.id group by owner_org,format order by count desc;").fetchall();
-        group_ids = []
-        group_tab = {}
-        group_spatial = {}
-        group_other = {}
-        for group_id, format, count in reses:
-            if group_id not in group_ids:
-                group_ids.append(group_id)
-                group_tab[group_id] = 0
-                group_spatial[group_id] = 0
-                group_other[group_id] = 0
-            if re.search('xls|csv|ms-excel|spreadsheetml.sheet|zip|netcdf', format, re.IGNORECASE):
-                group_tab[group_id] = group_tab[group_id] + count
-            elif re.search('wms|wfs|wcs|shp|kml|kmz', format, re.IGNORECASE):
-                group_spatial[group_id] = group_spatial[group_id] + count
-            else:
-                group_other[group_id] = group_other[group_id] + count
-        return [(model.Session.query(model.Group).get(unicode(group_id)), group_tab[group_id], group_spatial[group_id],
-                 group_other[group_id], group_tab[group_id] + group_spatial[group_id] + group_other[group_id]) for
-                group_id in group_ids]
+
+        def fetch_res_by_org():
+            connection = model.Session.connection()
+            reses = connection.execute("select owner_org,format,count(*) from \
+            resource inner join package on resource.package_id = package.id group by owner_org,format order by count desc;").fetchall();
+            group_ids = []
+            group_tab = {}
+            group_spatial = {}
+            group_other = {}
+            for group_id, format, count in reses:
+                if group_id not in group_ids:
+                    group_ids.append(group_id)
+                    group_tab[group_id] = 0
+                    group_spatial[group_id] = 0
+                    group_other[group_id] = 0
+                if re.search('xls|csv|ms-excel|spreadsheetml.sheet|zip|netcdf', format, re.IGNORECASE):
+                    group_tab[group_id] = group_tab[group_id] + count
+                elif re.search('wms|wfs|wcs|shp|kml|kmz', format, re.IGNORECASE):
+                    group_spatial[group_id] = group_spatial[group_id] + count
+                else:
+                    group_other[group_id] = group_other[group_id] + count
+            return [(model.Session.query(model.Group).get(unicode(group_id)), group_tab[group_id], group_spatial[group_id],
+                     group_other[group_id], group_tab[group_id] + group_spatial[group_id] + group_other[group_id]) for
+                    group_id in group_ids]
+
+        if cache_enabled:
+            key = 'res_by_org'
+            res_by_orgs = our_cache.get_value(key=key,
+                                              createfunc=fetch_res_by_org,
+                                              expiretime=cache_default_timeout)
+        else:
+            res_by_orgs = fetch_res_by_org()
+
+        return res_by_orgs
 
     @classmethod
     def top_active_orgs(cls, limit=10):
-        connection = model.Session.connection()
-        res = connection.execute("select package.owner_org, count(*) from package \
-		inner join \"group\" on package.owner_org = \"group\".id \
-                inner join (select distinct object_id from activity where activity.timestamp > (now() - interval '60 day')) \
-                latestactivities on latestactivities.object_id = package.id \
-                where package.state='active' \
-                and package.private = 'f' \
-                group by package.owner_org \
-                order by count(*) desc;").fetchall();
-        res_groups = [(model.Session.query(model.Group).get(unicode(group_id)), val) for group_id, val in res]
+
+        def fetch_top_active_orgs():
+            connection = model.Session.connection()
+            res = connection.execute("select package.owner_org, count(*) from package \
+            inner join (select distinct package_id from resource) as r on package.id = r.package_id \
+            inner join \"group\" on package.owner_org = \"group\".id \
+                    inner join (select distinct object_id from activity where activity.timestamp > (now() - interval '60 day')) \
+                    latestactivities on latestactivities.object_id = package.id \
+                    where package.state='active' \
+                    and package.private = 'f' \
+                    group by package.owner_org \
+                    order by count(*) desc;").fetchall();
+            return [(model.Session.query(model.Group).get(unicode(group_id)), val) for group_id, val in res]
+
+        if cache_enabled:
+            key = 'top_active_orgs'
+            res_groups = our_cache.get_value(key=key,
+                                             createfunc=fetch_top_active_orgs,
+                                             expiretime=cache_default_timeout)
+        else:
+            res_groups = fetch_top_active_orgs()
         return res_groups
 
     @classmethod
     def top_package_owners(cls, limit=10):
-        package_role = table('package_role')
-        user_object_role = table('user_object_role')
-        package = table('package')
-        s = select([user_object_role.c.user_id, func.count(user_object_role.c.role)], from_obj=[
-            user_object_role.join(package_role).join(package, package_role.c.package_id == package.c.id)]). \
-            where(user_object_role.c.role == model.authz.Role.ADMIN). \
-            where(package.c.private == 'f'). \
-            where(user_object_role.c.user_id != None). \
-            group_by(user_object_role.c.user_id). \
-            order_by(func.count(user_object_role.c.role).desc()). \
-            limit(limit)
-        res_ids = model.Session.execute(s).fetchall()
-        res_users = [(model.Session.query(model.User).get(unicode(user_id)), val) for user_id, val in res_ids]
-        return res_users
+
+        def fetch_top_package_owners():
+            package_role = table('package_role')
+            user_object_role = table('user_object_role')
+            package = table('package')
+            s = select([user_object_role.c.user_id, func.count(user_object_role.c.role)], from_obj=[
+                user_object_role.join(package_role).join(package, package_role.c.package_id == package.c.id)]). \
+                where(user_object_role.c.role == model.authz.Role.ADMIN). \
+                where(package.c.private == 'f'). \
+                where(user_object_role.c.user_id != None). \
+                group_by(user_object_role.c.user_id). \
+                order_by(func.count(user_object_role.c.role).desc()). \
+                limit(limit)
+            res_ids = model.Session.execute(s).fetchall()
+            return [(model.Session.query(model.User).get(unicode(user_id)), val) for user_id, val in res_ids]
+
+        if cache_enabled:
+            key = 'top_package_owners_limit_%s' % str(limit)
+            res_groups = our_cache.get_value(key=key,
+                                             createfunc=fetch_top_package_owners,
+                                             expiretime=cache_default_timeout)
+        else:
+            res_groups = fetch_top_package_owners()
+        return res_groups
 
     @classmethod
     def summary_stats(cls):
-        connection = model.Session.connection()
 
-        res = connection.execute("SELECT 'Total Organisations', count(*) from \"group\" where type = 'organization' and state = 'active' union \
-				select 'Total Datasets', count(*) from package where package.type='dataset' and package.state='active' and package.private = 'f' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
-				select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
-				select 'Total Data Files/Resources', count(*) from resource where resource.state='active' and package_id not IN (select distinct package_id from package INNER JOIN  package_extra on package.id = package_extra.package_id where key = 'harvest_portal') union \
-				select 'Total Data API Resources', count(*) from resource where resource.state='active' and (webstore_url = 'active' or format='wms') and package_id not IN (select distinct package_id from package INNER JOIN package_extra on package.id = package_extra.package_id where key = 'harvest_portal')").fetchall();
-        return res
+        def fetch_summary_stats():
+            connection = model.Session.connection()
+
+            res = connection.execute("SELECT 'Total Organisations', count(*) from \"group\" where type = 'organization' and state = 'active' union \
+                    select 'Total Datasets', count(*) from package where package.type='dataset' and package.state='active' and package.private = 'f' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
+                    select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
+                    select 'Total Data Files/Resources', count(*) from resource where resource.state='active' and package_id not IN (select distinct package_id from package INNER JOIN  package_extra on package.id = package_extra.package_id where key = 'harvest_portal') union \
+                    select 'Total Data API Resources', count(*) from resource where resource.state='active' and (webstore_url = 'active' or format='wms') and package_id not IN (select distinct package_id from package INNER JOIN package_extra on package.id = package_extra.package_id where key = 'harvest_portal')").fetchall();
+            return res
+
+        if cache_enabled:
+            key = 'summary_stats'
+            sum_stats = our_cache.get_value(key=key,
+                                            createfunc=fetch_summary_stats,
+                                            expiretime=cache_fast_timeout)
+        else:
+            sum_stats = fetch_summary_stats()
+
+        return sum_stats
 
 
     @classmethod
     def activity_counts(cls):
-        connection = model.Session.connection()
-        res = connection.execute(
-            "select to_char(timestamp, 'YYYY-MM') as month,activity_type, count(*) from activity group by month, activity_type order by month;").fetchall();
+
+        def fetch_activity_counts():
+            connection = model.Session.connection()
+            return connection.execute(
+                "select to_char(timestamp, 'YYYY-MM') as month,activity_type, count(*) from activity group by month, activity_type order by month;").fetchall();
+
+        if cache_enabled:
+            key = 'activity_counts'
+            res = our_cache.get_value(key=key,
+                                      createfunc=fetch_activity_counts,
+                                      expiretime=cache_default_timeout)
+        else:
+            res = fetch_activity_counts()
+
         return res
 
     @classmethod
     def users_by_organisation(cls):
-        connection = model.Session.connection()
-        res = connection.execute(
-            "select \"group\".id,\"user\".id ,capacity, sysadmin from \"group\""
-            "        inner join member on member.group_id = \"group\".id"
-            "        inner join \"user\" on member.table_id = \"user\".id"
-            "        where capacity is not null and \"group\".type = 'organization' and member.state='active' order by sysadmin, \"group\".name, capacity;").fetchall()
-        result = [(model.Session.query(model.Group).get(unicode(org)), model.Session.query(model.User).get(unicode(user_id)), role, sysadmin ) for
-                  (org, user_id, role, sysadmin) in res]
-        return result
+
+        def fetch_user_by_organisation():
+            connection = model.Session.connection()
+            res = connection.execute(
+                "select \"group\".id,\"user\".id ,capacity, sysadmin from \"group\""
+                "        inner join member on member.group_id = \"group\".id"
+                "        inner join \"user\" on member.table_id = \"user\".id"
+                "        where capacity is not null and \"group\".type = 'organization' and member.state='active' order by sysadmin, \"group\".name, capacity;").fetchall()
+            return [(model.Session.query(model.Group).get(unicode(org)), model.Session.query(model.User).get(unicode(user_id)), role, sysadmin ) for
+                      (org, user_id, role, sysadmin) in res]
+
+        if cache_enabled:
+            key = 'users_by_organisation'
+            res = our_cache.get_value(key=key,
+                                      createfunc=fetch_user_by_organisation,
+                                      expiretime=cache_default_timeout)
+        else:
+            res = fetch_user_by_organisation()
+
+        return res
 
     @classmethod
     def user_access_list(cls):
-        connection = model.Session.connection()
-        res = connection.execute(
-            "select \"user\".id ,sysadmin,capacity,max(last_active),array_agg(\"group\".name) member_of_orgs from \"user\" "
-            " left outer join member on member.table_id = \"user\".id "\
-            " left OUTER JOIN (select max(timestamp) last_active,user_id from activity group by user_id) a on \"user\".id = a.user_id "\
-            " left outer join \"group\" on member.group_id = \"group\".id  where sysadmin = 't' or (capacity is not null and member.state = 'active')"\
-            " group by \"user\".id ,sysadmin,capacity order by max(last_active) desc;").fetchall()
-        result = [(model.Session.query(model.User).get(unicode(user_id)), sysadmin, role, last_active, orgs) for
-                  (user_id, sysadmin, role, last_active, orgs) in res]
-        return result
+
+        def fetch_user_access_list():
+            connection = model.Session.connection()
+            res = connection.execute(
+                "select \"user\".id ,sysadmin,capacity,max(last_active),array_agg(\"group\".name) member_of_orgs from \"user\" "
+                " left outer join member on member.table_id = \"user\".id "\
+                " left OUTER JOIN (select max(timestamp) last_active,user_id from activity group by user_id) a on \"user\".id = a.user_id "\
+                " left outer join \"group\" on member.group_id = \"group\".id  where sysadmin = 't' or (capacity is not null and member.state = 'active')"\
+                " group by \"user\".id ,sysadmin,capacity order by max(last_active) desc;").fetchall()
+            return [(model.Session.query(model.User).get(unicode(user_id)), sysadmin, role, last_active, orgs) for
+                      (user_id, sysadmin, role, last_active, orgs) in res]
+
+        if cache_enabled:
+            key = 'user_access_list'
+            res = our_cache.get_value(key=key,
+                                      createfunc=fetch_user_access_list,
+                                      expiretime=cache_default_timeout)
+        else:
+            res = fetch_user_access_list()
+
+        return res
 
     @classmethod
     def recent_created_datasets(cls):
-        connection = model.Session.connection()
-        result = connection.execute("select timestamp,package.id,user_id,maintainer from package "
-                                    "inner join (select id, min(revision_timestamp) as timestamp from package_revision group by id) a on a.id=package.id "
-                                    "full outer join (select object_id,user_id from activity "
-                                    "where activity_type = 'new package' and timestamp > NOW() - interval '{recent_period} day') act on act.object_id=package.id "
-                                    "FULL OUTER JOIN (select package_id,key from package_extra "
-                                    "where key = 'harvest_portal') e on e.package_id=package.id "
-                                    "where key is null and private = 'f' and state='active' "
-                                    "and timestamp > NOW() - interval '{recent_period} day' order by timestamp asc LIMIT {recent_limit};".format(
-                                        recent_period=cls.recent_period,
-                                        recent_limit=cls.recent_limit)).fetchall()
-        r = []
-        for timestamp, package_id, user_id, maintainer in result:
-            package = model.Session.query(model.Package).get(unicode(package_id))
-	    if user_id:
-		    user = model.Session.query(model.User).get(unicode(user_id))
-	    else:
-		    user = model.User.by_name(unicode(maintainer))
-            if package.owner_org:
-                r.append((
-                datetime2date(timestamp), package, model.Session.query(model.Group).get(unicode(package.owner_org)),
-                user))
+
+        def fetch_recent_created_datasets():
+            connection = model.Session.connection()
+            result = connection.execute("select timestamp,package.id,user_id,maintainer from package "
+                                        "inner join (select id, min(revision_timestamp) as timestamp from package_revision group by id) a on a.id=package.id "
+                                        "full outer join (select object_id,user_id from activity "
+                                        "where activity_type = 'new package' and timestamp > NOW() - interval '{recent_period} day') act on act.object_id=package.id "
+                                        "FULL OUTER JOIN (select package_id,key from package_extra "
+                                        "where key = 'harvest_portal') e on e.package_id=package.id "
+                                        "where key is null and private = 'f' and state='active' "
+                                        "and timestamp > NOW() - interval '{recent_period} day' order by timestamp asc LIMIT {recent_limit};".format(
+                                            recent_period=cls.recent_period,
+                                            recent_limit=cls.recent_limit)).fetchall()
+            r = []
+            for timestamp, package_id, user_id, maintainer in result:
+                package = model.Session.query(model.Package).get(unicode(package_id))
+            if user_id:
+                user = model.Session.query(model.User).get(unicode(user_id))
             else:
-                r.append(
-                    (datetime2date(timestamp), package, None,user))
-        return r
+                user = model.User.by_name(unicode(maintainer))
+                if package.owner_org:
+                    r.append((
+                    datetime2date(timestamp), package, model.Session.query(model.Group).get(unicode(package.owner_org)),
+                    user))
+                else:
+                    r.append(
+                        (datetime2date(timestamp), package, None,user))
+            return r
+
+        if cache_enabled:
+            key = 'recent_created_datasets'
+            res = our_cache.get_value(key=key,
+                                      createfunc=fetch_recent_created_datasets,
+                                      expiretime=cache_default_timeout)
+        else:
+            res = fetch_recent_created_datasets()
+
+        return res
 
     @classmethod
     def recent_updated_datasets(cls):
-        connection = model.Session.connection()
-        result = connection.execute("select timestamp::date,package.id,user_id from package "
-                                    "inner join activity on activity.object_id=package.id "
-                                    "FULL OUTER JOIN (select package_id,key from package_extra "
-                                    "where key = 'harvest_portal') e on e.package_id=package.id "
-                                    "where key is null and activity_type = 'changed package' "
-                                    "and timestamp > NOW() - interval '{recent_period} day' and private = 'f' and state='active'"
-                                    "GROUP BY package.id,user_id,timestamp::date,activity_type "
-                                    "order by timestamp::date asc LIMIT {recent_limit};".format(
-                                        recent_period=cls.recent_period,
-                                        recent_limit=cls.recent_limit)).fetchall()
-        r = []
-        for timestamp, package_id, user_id in result:
-            package = model.Session.query(model.Package).get(unicode(package_id))
-            if package.owner_org:
-                r.append((timestamp, package, model.Session.query(model.Group).get(unicode(package.owner_org)),
-                    model.Session.query(model.User).get(unicode(user_id))))
-            else:
-                r.append(
-                    (timestamp, package, None, model.Session.query(model.User).get(unicode(user_id))))
-        return r
+
+        def fetch_recent_updated_datasets():
+            connection = model.Session.connection()
+            result = connection.execute("select timestamp::date,package.id,user_id from package "
+                                        "inner join activity on activity.object_id=package.id "
+                                        "FULL OUTER JOIN (select package_id,key from package_extra "
+                                        "where key = 'harvest_portal') e on e.package_id=package.id "
+                                        "where key is null and activity_type = 'changed package' "
+                                        "and timestamp > NOW() - interval '{recent_period} day' and private = 'f' and state='active'"
+                                        "GROUP BY package.id,user_id,timestamp::date,activity_type "
+                                        "order by timestamp::date asc LIMIT {recent_limit};".format(
+                                            recent_period=cls.recent_period,
+                                            recent_limit=cls.recent_limit)).fetchall()
+            r = []
+            for timestamp, package_id, user_id in result:
+                package = model.Session.query(model.Package).get(unicode(package_id))
+                if package.owner_org:
+                    r.append((timestamp, package, model.Session.query(model.Group).get(unicode(package.owner_org)),
+                        model.Session.query(model.User).get(unicode(user_id))))
+                else:
+                    r.append(
+                        (timestamp, package, None, model.Session.query(model.User).get(unicode(user_id))))
+            return r
+
+        if cache_enabled:
+            key = 'recent_updated_datasets'
+            res = our_cache.get_value(key=key,
+                                      createfunc=fetch_recent_updated_datasets,
+                                      expiretime=cache_default_timeout)
+        else:
+            res = fetch_recent_updated_datasets()
+
+        return res
 
 
 class RevisionStats(object):
@@ -271,14 +416,12 @@ class RevisionStats(object):
         @param weeks_ago: specify how many weeks ago to give count for
                           (0 = this week so far)
         '''
-        package_revision = table('package_revision')
-        revision = table('revision')
         today = datetime.date.today()
         date_from = datetime.datetime(today.year, today.month, today.day) - \
                     datetime.timedelta(days=datetime.date.weekday(today) + \
                                             7 * weeks_ago)
         date_to = date_from + datetime.timedelta(days=7)
-        return (date_from, date_to)
+        return date_from, date_to
 
     @classmethod
     def get_date_week_started(cls, date_):
@@ -293,11 +436,23 @@ class RevisionStats(object):
         @return: Returns list of revisions and date of them, in
                  format: [(id, date), ...]
         '''
-        package_revision = table('package_revision')
-        revision = table('revision')
-        s = select([package_revision.c.id, revision.c.timestamp], from_obj=[package_revision.join(revision)]).order_by(
-            revision.c.timestamp)
-        res = model.Session.execute(s).fetchall()  # [(id, datetime), ...]
+
+        def fetch_package_revisions():
+            package_revision = table('package_revision')
+            revision = table('revision')
+            s = select([package_revision.c.id, revision.c.timestamp],
+                       from_obj=[package_revision.join(revision)]).order_by(
+                revision.c.timestamp)
+            return model.Session.execute(s).fetchall()  # [(id, datetime), ...]
+
+        if cache_enabled:
+            key = 'package_revisions'
+            res = our_cache.get_value(key=key,
+                                      createfunc=fetch_package_revisions,
+                                      expiretime=cache_default_timeout)
+        else:
+            res = fetch_package_revisions()
+
         return res
 
     @classmethod
@@ -331,7 +486,6 @@ class RevisionStats(object):
             new_packages = new_packages()
         return new_packages
 
-
     @classmethod
     def get_num_packages_by_week(cls):
         def num_packages():
@@ -340,7 +494,6 @@ class RevisionStats(object):
             first_date = datetime.datetime.strptime(new_packages_by_week[0][0], DATE_FORMAT).date()
             cls._cumulative_num_pkgs = 0
             new_pkgs = []
-
 
             def build_weekly_stats(week_commences, new_pkg_ids, deleted_pkg_ids):
                 num_pkgs = len(new_pkg_ids)
@@ -471,4 +624,3 @@ class RevisionStats(object):
         elif type_ in ('new_packages', 'deleted_packages'):
             return [model.Session.query(model.Package).get(pkg_id) \
                     for pkg_id in object_ids]
-
