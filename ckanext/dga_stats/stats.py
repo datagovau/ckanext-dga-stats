@@ -327,10 +327,10 @@ class Stats(object):
             r = []
             for timestamp, package_id, user_id, maintainer in result:
                 package = model.Session.query(model.Package).get(unicode(package_id))
-            if user_id:
-                user = model.Session.query(model.User).get(unicode(user_id))
-            else:
-                user = model.User.by_name(unicode(maintainer))
+                if user_id:
+                    user = model.Session.query(model.User).get(unicode(user_id))
+                else:
+                    user = model.User.by_name(unicode(maintainer))
                 if package.owner_org:
                     r.append((
                     datetime2date(timestamp), package, model.Session.query(model.Group).get(unicode(package.owner_org)),
