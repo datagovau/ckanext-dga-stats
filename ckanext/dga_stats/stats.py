@@ -16,7 +16,7 @@ if cache_enabled:
 
     cache_default_timeout = p.toolkit.asint(config.get('ckanext.stats.cache_default_timeout', '86400'))
     cache_fast_timeout = p.toolkit.asint(config.get('ckanext.stats.cache_fast_timeout', '600'))
-    our_cache = cache.get_cache('stats', type='dbm')
+    our_cache = cache.get_cache('stats', type='memory')
 
 DATE_FORMAT = '%Y-%m-%d'
 
