@@ -3,6 +3,8 @@ from ckan.lib.base import BaseController, config
 import stats as stats_lib
 import ckan.lib.helpers as h
 
+import Queue
+
 class StatsController(BaseController):
 
     def index(self):
@@ -29,21 +31,35 @@ class StatsController(BaseController):
 
         # Used in new CKAN templates gives more control to the templates for formatting.
         c.raw_packages_by_week = []
+
         for week_date, num_packages, cumulative_num_packages in c.num_packages_by_week:
             c.packages_by_week.append('[new Date(%s), %s]' % (week_date.replace('-', ','), cumulative_num_packages))
             c.raw_packages_by_week.append({'date': h.date_str_to_datetime(week_date), 'total_packages': cumulative_num_packages})
 
         c.all_package_revisions = []
         c.raw_all_package_revisions = []
+        week_queue = Queue.Queue()
         for week_date, revs, num_revisions, cumulative_num_revisions in c.package_revisions_by_week:
             c.all_package_revisions.append('[new Date(%s), %s]' % (week_date.replace('-', ','), num_revisions))
             c.raw_all_package_revisions.append({'date': h.date_str_to_datetime(week_date), 'total_revisions': num_revisions})
+            week_queue.put(week_date)
 
         c.new_datasets = []
         c.raw_new_datasets = []
         for week_date, pkgs, num_packages, cumulative_num_packages in c.new_packages_by_week:
+            revision_week_date = week_queue.get()
+            while revision_week_date != week_date:
+                c.new_datasets.append('[new Date(%s), %s]' % (revision_week_date.replace('-', ','), 0))
+                c.raw_new_datasets.append({'date': h.date_str_to_datetime(revision_week_date), 'new_packages': 0})
+                revision_week_date = week_queue.get()
+
             c.new_datasets.append('[new Date(%s), %s]' % (week_date.replace('-', ','), num_packages))
             c.raw_new_datasets.append({'date': h.date_str_to_datetime(week_date), 'new_packages': num_packages})
+
+        while not week_queue.empty():
+            revision_week_date = week_queue.get()
+            c.new_datasets.append('[new Date(%s), %s]' % (revision_week_date.replace('-', ','), 0))
+            c.raw_new_datasets.append({'date': h.date_str_to_datetime(revision_week_date), 'new_packages': 0})
 
         return p.toolkit.render('ckanext/stats/index.html')
 
