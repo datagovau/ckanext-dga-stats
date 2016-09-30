@@ -14,7 +14,7 @@ cache_enabled = p.toolkit.asbool(config.get('ckanext.stats.cache_enabled', 'True
 if cache_enabled:
     from pylons import cache
 
-    our_cache = cache.get_cache('stats', type='dbm')
+    our_cache = cache.get_cache('stats', type='memory')
 
 DATE_FORMAT = '%Y-%m-%d'
 
