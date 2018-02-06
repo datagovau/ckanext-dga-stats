@@ -197,19 +197,18 @@ class Stats(object):
     def top_package_owners(cls, limit=10):
 
         def fetch_top_package_owners():
-            package_role = table('package_role')
-            user_object_role = table('user_object_role')
-            package = table('package')
-            s = select([user_object_role.c.user_id, func.count(user_object_role.c.role)], from_obj=[
-                user_object_role.join(package_role).join(package, package_role.c.package_id == package.c.id)]). \
-                where(user_object_role.c.role == model.authz.Role.ADMIN). \
-                where(package.c.private == 'f'). \
-                where(user_object_role.c.user_id != None). \
-                group_by(user_object_role.c.user_id). \
-                order_by(func.count(user_object_role.c.role).desc()). \
-                limit(limit)
-            res_ids = model.Session.execute(s).fetchall()
-            return [(model.Session.query(model.User).get(unicode(user_id)), val) for user_id, val in res_ids]
+            userid_count = \
+                model.Session.query(model.Package.creator_user_id,
+                                    func.count(model.Package.creator_user_id)) \
+                    .filter(model.Package.state == 'active') \
+                    .filter(model.Package.private == False) \
+                    .group_by(model.Package.creator_user_id) \
+                    .order_by(func.count(model.Package.creator_user_id).desc()) \
+                    .limit(limit).all()
+            return [
+                (model.Session.query(model.User).get(unicode(user_id)), count)
+                for user_id, count in userid_count
+                if user_id]
 
         if cache_enabled:
             key = 'top_package_owners_limit_%s' % str(limit)
