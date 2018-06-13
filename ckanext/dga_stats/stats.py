@@ -3,7 +3,8 @@ import datetime
 from pylons import config
 from sqlalchemy import Table, select, func, and_
 from sqlalchemy.sql.expression import text
-import ckanext.datastore.db as datastore_db
+import ckanext.datastore as datastore_db
+import ckanext.datastore.backend as datastore_backend
 import ckan.plugins as p
 import ckan.logic as logic
 import ckan.model as model
@@ -229,7 +230,7 @@ class Stats(object):
             result.append(('Total Datasets', logic.get_action('package_search')({}, {"rows": 1})['count']))
             result.append(('Total Machine Readable/Data API Resources',
                            logic.get_action('resource_search')({}, {"query": ["format:wms"]})['count'] + len(
-                               datastore_db.get_all_resources_ids_in_datastore())))
+                               datastore_backend.get_all_resources_ids_in_datastore())))
             result.append(('Total Organisations', len(logic.get_action('organization_list')({}, {}))))
 
             res = connection.execute("select 'Total Archived Datasets', count(*) from package where (state='active' or state='draft' or state='draft-complete') and private = 't' and package.id not in (select package_id from package_extra where key = 'harvest_portal') union \
