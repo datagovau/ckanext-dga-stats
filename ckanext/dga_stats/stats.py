@@ -10,6 +10,7 @@ import ckan.model as model
 import re
 
 cache_enabled = p.toolkit.asbool(config.get('ckanext.stats.cache_enabled', 'True'))
+row_limit = config.get('ckanext.stats.row_limit', 100)
 
 if cache_enabled:
     from pylons import cache
@@ -154,9 +155,26 @@ class Stats(object):
 
     @classmethod
     def activity_counts(cls):
+        if cache_enabled:
+            today = datetime.date.today()
+            key = 'activity_count_%s' + today.strftime(DATE_FORMAT)
+            activities = our_cache.get_value(
+                key=key,
+                createfunc=cls._activity_counts
+            )
+        else:
+            activities = cls._activity_counts()
+        return activities
+
+    @staticmethod
+    def _activity_counts():
         connection = model.Session.connection()
         res = connection.execute(
-            "select to_char(timestamp, 'YYYY-MM') as month,activity_type, count(*) from activity group by month, activity_type order by month;").fetchall();
+            "select to_char(timestamp, 'YYYY-MM') as month,"
+            "activity_type, count(*) "
+            "from activity group by month, activity_type "
+            "order by month;"
+        ).fetchall()
         return res
 
     @classmethod
@@ -187,14 +205,19 @@ class Stats(object):
     @classmethod
     def recent_created_datasets(cls):
         connection = model.Session.connection()
-        result = connection.execute("select timestamp,package.id,user_id,maintainer from package "
-                                    "inner join (select id, min(revision_timestamp) as timestamp from package_revision group by id) a on a.id=package.id "
-                                    "full outer join (select object_id,user_id from activity "
-                                    "where activity_type = 'new package' and timestamp > NOW() - interval '60 day') act on act.object_id=package.id "
-                                    "FULL OUTER JOIN (select package_id,key from package_extra "
-                                    "where key = 'harvest_portal') e on e.package_id=package.id "
-                                    "where key is null and private = 'f' and state='active' "
-                                    "and timestamp > NOW() - interval '60 day' order by timestamp asc;").fetchall()
+        result = connection.execute(
+            "select timestamp,package.id,user_id,maintainer from package "
+            "inner join (select id, min(revision_timestamp) as timestamp "
+            "from package_revision group by id) a on a.id=package.id "
+            "full outer join (select object_id,user_id from activity "
+            "where activity_type = 'new package' and timestamp > NOW() "
+            "- interval '60 day') act on act.object_id=package.id "
+            "FULL OUTER JOIN (select package_id,key from package_extra "
+            "where key = 'harvest_portal') e on e.package_id=package.id "
+            "where key is null and private = 'f' and state='active' "
+            "and timestamp > NOW() - interval '60 day' order by timestamp asc "
+            "limit {row_limit};".format(row_limit=row_limit)
+        ).fetchall()
         r = []
         for timestamp, package_id, user_id, maintainer in result:
             package = model.Session.query(model.Package).get(unicode(package_id))
@@ -213,15 +236,32 @@ class Stats(object):
 
     @classmethod
     def recent_updated_datasets(cls):
+        if cache_enabled:
+            today = datetime.date.today()
+            key = 'recent_updated_datasets_%s' + today.strftime(DATE_FORMAT)
+            datasets = our_cache.get_value(
+                key=key,
+                createfunc=cls._recent_updated_datasets
+            )
+        else:
+            datasets = cls._recent_updated_datasets()
+        return datasets
+
+    @staticmethod
+    def _recent_updated_datasets():
         connection = model.Session.connection()
-        result = connection.execute("select timestamp::date,package.id,user_id from package "
-                                    "inner join activity on activity.object_id=package.id "
-                                    "FULL OUTER JOIN (select package_id,key from package_extra "
-                                    "where key = 'harvest_portal') e on e.package_id=package.id "
-                                    "where key is null and activity_type = 'changed package' "
-                                    "and timestamp > NOW() - interval '60 day' and private = 'f' and state='active'"
-                                    "GROUP BY package.id,user_id,timestamp::date,activity_type "
-                                    "order by timestamp::date asc ;").fetchall()
+        result = connection.execute(
+            "select timestamp::date,package.id,user_id from package "
+            "inner join activity on activity.object_id=package.id "
+            "FULL OUTER JOIN (select package_id,key from package_extra "
+            "where key = 'harvest_portal') e on e.package_id=package.id "
+            "where key is null and activity_type = 'changed package' "
+            "and timestamp > NOW() - interval '60 day' and private = 'f' "
+            "and state='active'"
+            "GROUP BY package.id,user_id,timestamp::date,activity_type "
+            "order by timestamp::date asc "
+            "limit {row_limit};".format(row_limit=row_limit)
+        ).fetchall()
         r = []
         for timestamp, package_id, user_id in result:
             package = model.Session.query(model.Package).get(unicode(package_id))
@@ -463,4 +503,3 @@ class RevisionStats(object):
         elif type_ in ('new_packages', 'deleted_packages'):
             return [model.Session.query(model.Package).get(pkg_id) \
                     for pkg_id in object_ids]
-
