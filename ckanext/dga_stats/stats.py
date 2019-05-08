@@ -154,9 +154,26 @@ class Stats(object):
 
     @classmethod
     def activity_counts(cls):
+        if cache_enabled:
+            today = datetime.date.today()
+            key = 'activity_count_%s' + today.strftime(DATE_FORMAT)
+            activities = our_cache.get_value(
+                key=key,
+                createfunc=cls._activity_counts
+            )
+        else:
+            activities = cls._activity_counts()
+        return activities
+
+    @staticmethod
+    def _activity_counts():
         connection = model.Session.connection()
         res = connection.execute(
-            "select to_char(timestamp, 'YYYY-MM') as month,activity_type, count(*) from activity group by month, activity_type order by month;").fetchall();
+            "select to_char(timestamp, 'YYYY-MM') as month,"
+            "activity_type, count(*) "
+            "from activity group by month, activity_type "
+            "order by month;"
+        ).fetchall()
         return res
 
     @classmethod
@@ -213,6 +230,19 @@ class Stats(object):
 
     @classmethod
     def recent_updated_datasets(cls):
+        if cache_enabled:
+            today = datetime.date.today()
+            key = 'recent_updated_datasets_%s' + today.strftime(DATE_FORMAT)
+            datasets = our_cache.get_value(
+                key=key,
+                createfunc=cls._recent_updated_datasets
+            )
+        else:
+            datasets = cls._recent_updated_datasets()
+        return datasets
+
+    @staticmethod
+    def _recent_updated_datasets():
         connection = model.Session.connection()
         result = connection.execute("select timestamp::date,package.id,user_id from package "
                                     "inner join activity on activity.object_id=package.id "
@@ -463,4 +493,3 @@ class RevisionStats(object):
         elif type_ in ('new_packages', 'deleted_packages'):
             return [model.Session.query(model.Package).get(pkg_id) \
                     for pkg_id in object_ids]
-
