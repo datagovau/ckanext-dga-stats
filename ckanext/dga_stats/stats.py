@@ -10,6 +10,7 @@ import ckan.model as model
 import re
 
 cache_enabled = p.toolkit.asbool(config.get('ckanext.stats.cache_enabled', 'True'))
+row_limit = config.get('ckanext.stats.row_limit', 100)
 
 if cache_enabled:
     from pylons import cache
@@ -195,21 +196,20 @@ class Stats(object):
 
     @classmethod
     def top_package_owners(cls, limit=10):
-
         def fetch_top_package_owners():
-            package_role = table('package_role')
-            user_object_role = table('user_object_role')
-            package = table('package')
-            s = select([user_object_role.c.user_id, func.count(user_object_role.c.role)], from_obj=[
-                user_object_role.join(package_role).join(package, package_role.c.package_id == package.c.id)]). \
-                where(user_object_role.c.role == model.authz.Role.ADMIN). \
-                where(package.c.private == 'f'). \
-                where(user_object_role.c.user_id != None). \
-                group_by(user_object_role.c.user_id). \
-                order_by(func.count(user_object_role.c.role).desc()). \
-                limit(limit)
-            res_ids = model.Session.execute(s).fetchall()
-            return [(model.Session.query(model.User).get(unicode(user_id)), val) for user_id, val in res_ids]
+            userid_count = \
+                model.Session.query(model.Package.creator_user_id,
+                                    func.count(model.Package.creator_user_id))\
+                     .filter(model.Package.state == 'active')\
+                     .filter(model.Package.private == False)\
+                     .group_by(model.Package.creator_user_id) \
+                     .order_by(func.count(model.Package.creator_user_id).desc())\
+                     .limit(limit).all()
+            user_count = [
+                (model.Session.query(model.User).get(unicode(user_id)), count)
+                for user_id, count in userid_count
+                if user_id]
+            return user_count
 
         if cache_enabled:
             key = 'top_package_owners_limit_%s' % str(limit)
@@ -242,7 +242,6 @@ class Stats(object):
             sum_stats = fetch_summary_stats()
 
         return sum_stats
-
 
     @classmethod
     def activity_counts(cls):
@@ -331,11 +330,11 @@ class Stats(object):
                 user = model.Session.query(model.User).get(unicode(user_id))
             else:
                 user = model.User.by_name(unicode(maintainer))
-                if package.owner_org:
+            if package.owner_org:
                     r.append((
                     datetime2date(timestamp), package, model.Session.query(model.Group).get(unicode(package.owner_org)),
                     user))
-                else:
+            else:
                     r.append(
                         (datetime2date(timestamp), package, None,user))
             return r
