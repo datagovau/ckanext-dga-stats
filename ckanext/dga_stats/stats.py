@@ -17,7 +17,7 @@ if cache_enabled:
 
     cache_default_timeout = p.toolkit.asint(config.get('ckanext.stats.cache_default_timeout', '86400'))
     cache_fast_timeout = p.toolkit.asint(config.get('ckanext.stats.cache_fast_timeout', '600'))
-    our_cache = cache.get_cache('stats', type='dbm')
+    our_cache = cache.get_cache('stats', type='memory')
 
 DATE_FORMAT = '%Y-%m-%d'
 
@@ -313,34 +313,34 @@ class Stats(object):
 
         def fetch_recent_created_datasets():
             connection = model.Session.connection()
-            result = connection.execute("select timestamp,package.id,user_id,maintainer from package "
-                                        "inner join (select id, min(revision_timestamp) as timestamp from package_revision group by id) a on a.id=package.id "
-                                        "full outer join (select object_id,user_id from activity "
-                                        "where activity_type = 'new package' and timestamp > NOW() - interval '{recent_period} day') act on act.object_id=package.id "
-                                        "FULL OUTER JOIN (select package_id,key from package_extra "
-                                        "where key = 'harvest_portal') e on e.package_id=package.id "
-                                        "where key is null and private = 'f' and state='active' "
-                                        "and timestamp > NOW() - interval '{recent_period} day' order by timestamp asc LIMIT {recent_limit};".format(
+            result = connection.execute("select timestamp,package.id,user_id,maintainer from package "\
+                                        "inner join (select id, min(revision_timestamp) as timestamp from package_revision group by id) a on a.id=package.id "\
+                                        "full outer join (select object_id,user_id from activity "\
+                                        "where activity_type = 'new package' and timestamp > NOW() - interval '{recent_period} day') act on act.object_id=package.id "\
+                                        "FULL OUTER JOIN (select package_id,key from package_extra "\
+                                        "where key = 'harvest_portal') e on e.package_id=package.id "\
+                                        "where key is null and private = 'f' and state='active' "\
+                                        "and timestamp > NOW() - interval '{recent_period} day' order by timestamp desc LIMIT {recent_limit};".format(
                                             recent_period=cls.recent_period,
                                             recent_limit=cls.recent_limit)).fetchall()
             r = []
             for timestamp, package_id, user_id, maintainer in result:
                 package = model.Session.query(model.Package).get(unicode(package_id))
-            if user_id:
-                user = model.Session.query(model.User).get(unicode(user_id))
-            else:
-                user = model.User.by_name(unicode(maintainer))
-            if package.owner_org:
+                if user_id:
+                    user = model.Session.query(model.User).get(unicode(user_id))
+                else:
+                    user = model.User.by_name(unicode(maintainer))
+                if package.owner_org:
                     r.append((
-                    datetime2date(timestamp), package, model.Session.query(model.Group).get(unicode(package.owner_org)),
-                    user))
-            else:
+                        datetime2date(timestamp), package, model.Session.query(model.Group).get(unicode(package.owner_org)),
+                        user))
+                else:
                     r.append(
                         (datetime2date(timestamp), package, None,user))
             return r
 
         if cache_enabled:
-            key = 'recent_created_datasets'
+            key = "recent_created_datasets_{0}_{1}".format(cls.recent_period, cls.recent_limit)
             res = our_cache.get_value(key=key,
                                       createfunc=fetch_recent_created_datasets,
                                       expiretime=cache_default_timeout)
@@ -354,14 +354,14 @@ class Stats(object):
 
         def fetch_recent_updated_datasets():
             connection = model.Session.connection()
-            result = connection.execute("select timestamp::date,package.id,user_id from package "
-                                        "inner join activity on activity.object_id=package.id "
-                                        "FULL OUTER JOIN (select package_id,key from package_extra "
-                                        "where key = 'harvest_portal') e on e.package_id=package.id "
-                                        "where key is null and activity_type = 'changed package' "
-                                        "and timestamp > NOW() - interval '{recent_period} day' and private = 'f' and state='active'"
-                                        "GROUP BY package.id,user_id,timestamp::date,activity_type "
-                                        "order by timestamp::date asc LIMIT {recent_limit};".format(
+            result = connection.execute("select timestamp::date,package.id,user_id from package "\
+                                        "inner join activity on activity.object_id=package.id "\
+                                        "FULL OUTER JOIN (select package_id,key from package_extra "\
+                                        "where key = 'harvest_portal') e on e.package_id=package.id "\
+                                        "where key is null and activity_type = 'changed package' "\
+                                        "and timestamp > NOW() - interval '{recent_period} day' and private = 'f' and state='active'"\
+                                        "GROUP BY package.id,user_id,timestamp::date,activity_type "\
+                                        "order by timestamp::date desc LIMIT {recent_limit};".format(
                                             recent_period=cls.recent_period,
                                             recent_limit=cls.recent_limit)).fetchall()
             r = []
@@ -376,7 +376,7 @@ class Stats(object):
             return r
 
         if cache_enabled:
-            key = 'recent_updated_datasets'
+            key = "recent_updated_datasets_{0}_{1}".format(cls.recent_period, cls.recent_limit)
             res = our_cache.get_value(key=key,
                                       createfunc=fetch_recent_updated_datasets,
                                       expiretime=cache_default_timeout)

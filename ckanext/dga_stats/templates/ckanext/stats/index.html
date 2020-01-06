@@ -28,7 +28,7 @@
             </tr>
           </thead>
           <tbody>
-          {% for date,package,group,user in c.recent_created_datasets|reverse() %}
+          {% for date,package,group,user in c.recent_created_datasets %}
           <tr>
                   <td>{{ date.strftime(date_format) }}</td>
               <td>{{ h.link_to(package.title or package.name, h.url_for(controller='package', action='read', id=package.name)) }}</td>
@@ -63,7 +63,7 @@
               </tr>
               </thead>
               <tbody>
-              {% for date,package,group,user in c.recent_updated_datasets|reverse() %}
+              {% for date,package,group,user in c.recent_updated_datasets %}
               <tr>
                   <td>{{ date.strftime(date_format) }}</td>
                   <td>{{ h.link_to(package.title or package.name, h.url_for(controller='package', action='read', id=package.name)) }}</td>
