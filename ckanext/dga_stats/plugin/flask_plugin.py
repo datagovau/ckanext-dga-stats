@@ -3,6 +3,7 @@
 import ckan.plugins as p
 from ckanext.dga_stats.views import get_blueprints
 
+
 class MixinPlugin(p.SingletonPlugin):
     p.implements(p.IBlueprint)
 

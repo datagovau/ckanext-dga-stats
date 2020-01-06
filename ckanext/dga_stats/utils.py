@@ -12,6 +12,7 @@ from . import stats as stats_lib
 
 log = logging.getLogger(__name__)
 
+
 def _timed(f, arg=None):
     start = time.time()
     if arg:
@@ -19,7 +20,7 @@ def _timed(f, arg=None):
     else:
         ret = f()
     elapsed = time.time() - start
-    log.info(f.__name__ + " " + str(elapsed) + ' seconds')
+    log.info(f.__name__ + " " + str(elapsed) + " seconds")
     return ret
 
 
@@ -38,12 +39,21 @@ def index():
     extra_vars["res_by_org"] = _timed(stats.res_by_org)
     extra_vars["top_active_orgs"] = _timed(stats.top_active_orgs)
     extra_vars["user_access_list"] = _timed(stats.user_access_list)
-    extra_vars["recent_created_datasets"] = _timed(stats.recent_created_datasets)
-    extra_vars["recent_updated_datasets"] = _timed(stats.recent_updated_datasets)
-    extra_vars["new_packages_by_week"] = _timed(rev_stats.get_by_week, 'new_packages')
-    extra_vars["num_packages_by_week"] = _timed(rev_stats.get_num_packages_by_week)
-    extra_vars["package_revisions_by_week"] = _timed(rev_stats.get_by_week,
-                                         'package_revisions')
+    extra_vars["recent_created_datasets"] = _timed(
+        stats.recent_created_datasets
+    )
+    extra_vars["recent_updated_datasets"] = _timed(
+        stats.recent_updated_datasets
+    )
+    extra_vars["new_packages_by_week"] = _timed(
+        rev_stats.get_by_week, "new_packages"
+    )
+    extra_vars["num_packages_by_week"] = _timed(
+        rev_stats.get_num_packages_by_week
+    )
+    extra_vars["package_revisions_by_week"] = _timed(
+        rev_stats.get_by_week, "package_revisions"
+    )
     extra_vars["recent_period"] = stats.recent_period
 
     # Used in the legacy CKAN templates.
@@ -51,36 +61,48 @@ def index():
 
     # Used in new CKAN templates gives more control to the templates for formatting.
     extra_vars["raw_packages_by_week"] = []
-    for week_date, num_packages, cumulative_num_packages in extra_vars["num_packages_by_week"]:
+    for week_date, num_packages, cumulative_num_packages in extra_vars[
+        "num_packages_by_week"
+    ]:
         extra_vars["packages_by_week"].append(
-            '[new Date(%s), %s]' %
-            (week_date.replace('-', ','), cumulative_num_packages))
-        extra_vars["raw_packages_by_week"].append({
-            'date': h.date_str_to_datetime(week_date),
-            'total_packages': cumulative_num_packages
-        })
+            "[new Date(%s), %s]"
+            % (week_date.replace("-", ","), cumulative_num_packages)
+        )
+        extra_vars["raw_packages_by_week"].append(
+            {
+                "date": h.date_str_to_datetime(week_date),
+                "total_packages": cumulative_num_packages,
+            }
+        )
 
     extra_vars["all_package_revisions"] = []
     extra_vars["raw_all_package_revisions"] = []
-    for week_date, revs, num_revisions, cumulative_num_revisions in extra_vars["package_revisions_by_week"]:
+    for week_date, revs, num_revisions, cumulative_num_revisions in extra_vars[
+        "package_revisions_by_week"
+    ]:
         extra_vars["all_package_revisions"].append(
-            '[new Date(%s), %s]' %
-            (week_date.replace('-', ','), num_revisions))
-        extra_vars["raw_all_package_revisions"].append({
-            'date':
-            h.date_str_to_datetime(week_date),
-            'total_revisions':
-            num_revisions
-        })
+            "[new Date(%s), %s]" % (week_date.replace("-", ","), num_revisions)
+        )
+        extra_vars["raw_all_package_revisions"].append(
+            {
+                "date": h.date_str_to_datetime(week_date),
+                "total_revisions": num_revisions,
+            }
+        )
 
     extra_vars["new_datasets"] = []
     extra_vars["raw_new_datasets"] = []
-    for week_date, pkgs, num_packages, cumulative_num_packages in extra_vars["new_packages_by_week"]:
-        extra_vars["new_datasets"].append('[new Date(%s), %s]' %
-                              (week_date.replace('-', ','), num_packages))
-        extra_vars["raw_new_datasets"].append({
-            'date': h.date_str_to_datetime(week_date),
-            'new_packages': num_packages
-        })
+    for week_date, pkgs, num_packages, cumulative_num_packages in extra_vars[
+        "new_packages_by_week"
+    ]:
+        extra_vars["new_datasets"].append(
+            "[new Date(%s), %s]" % (week_date.replace("-", ","), num_packages)
+        )
+        extra_vars["raw_new_datasets"].append(
+            {
+                "date": h.date_str_to_datetime(week_date),
+                "new_packages": num_packages,
+            }
+        )
 
-    return p.toolkit.render('ckanext/stats/index.html', extra_vars)
+    return p.toolkit.render("ckanext/stats/index.html", extra_vars)

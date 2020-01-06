@@ -4,17 +4,19 @@ from ckan.tests import url_for
 
 from ckanext.dga_stats.tests import StatsFixture
 
-class TestStatsPlugin(StatsFixture):
 
+class TestStatsPlugin(StatsFixture):
     def test_01_config(self):
         from pylons import config
-        paths = config['extra_public_paths']
-        publicdir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-            'public')
+
+        paths = config["extra_public_paths"]
+        publicdir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "public"
+        )
         assert paths.startswith(publicdir), (publicdir, paths)
 
     def test_02_index(self):
-        url = url_for('stats')
+        url = url_for("stats")
         out = self.app.get(url)
-        assert 'Total number of Datasets' in out, out
-        assert 'Most Edited Datasets' in out, out
+        assert "Total number of Datasets" in out, out
+        assert "Most Edited Datasets" in out, out
