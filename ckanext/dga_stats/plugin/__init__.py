@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from builtins import range
 import ckan.plugins as p
 import datetime as datetime
 from logging import getLogger
@@ -13,7 +14,7 @@ else:
 
 
 def date_range():
-    return list(reversed(range(2013, datetime.datetime.now().year + 1)))
+    return list(reversed(list(range(2013, datetime.datetime.now().year + 1))))
 
 
 class StatsPlugin(MixinPlugin, p.SingletonPlugin):

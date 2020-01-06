@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
+from builtins import str
 import time
 import logging
 
 import ckan.lib.helpers as h
 import ckan.plugins as p
 
-import stats as stats_lib
+from . import stats as stats_lib
 
 log = logging.getLogger(__name__)
 

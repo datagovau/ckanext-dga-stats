@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from builtins import str
+from builtins import object
 import datetime
 import re
 
@@ -58,7 +60,7 @@ class Stats(object):
                         func.avg(rating.c.rating).desc(),
                         func.count(rating.c.rating).desc()).limit(limit)
             res_ids = model.Session.execute(sql).fetchall()
-            return [(model.Session.query(model.Package).get(unicode(pkg_id)),
+            return [(model.Session.query(model.Package).get(str(pkg_id)),
                      avg, num) for pkg_id, avg, num in res_ids]
 
         if cache_enabled:
@@ -86,7 +88,7 @@ class Stats(object):
                                func.count(package_revision.c.revision_id).desc(
                                )).limit(limit)
             res_ids = model.Session.execute(s).fetchall()
-            return [(model.Session.query(model.Package).get(unicode(pkg_id)),
+            return [(model.Session.query(model.Package).get(str(pkg_id)),
                      val) for pkg_id, val in res_ids]
 
         if cache_enabled:
@@ -114,7 +116,7 @@ class Stats(object):
             #limit(limit)
 
             res_ids = model.Session.execute(s).fetchall()
-            return [(model.Session.query(model.Group).get(unicode(group_id)),
+            return [(model.Session.query(model.Group).get(str(group_id)),
                      val) for group_id, val in res_ids]
 
         if cache_enabled:
@@ -136,7 +138,7 @@ class Stats(object):
                 "where package.state='active' "
                 "group by package.owner_org,\"group\".name, package.private "
                 "order by \"group\".name, package.private;").fetchall()
-            return [(model.Session.query(model.Group).get(unicode(group_id)),
+            return [(model.Session.query(model.Group).get(str(group_id)),
                      private, val) for group_id, private, val in res]
 
         if cache_enabled:
@@ -174,7 +176,7 @@ class Stats(object):
                     group_spatial[group_id] = group_spatial[group_id] + count
                 else:
                     group_other[group_id] = group_other[group_id] + count
-            return [(model.Session.query(model.Group).get(unicode(group_id)),
+            return [(model.Session.query(model.Group).get(str(group_id)),
                      group_tab[group_id], group_spatial[group_id],
                      group_other[group_id], group_tab[group_id] +
                      group_spatial[group_id] + group_other[group_id])
@@ -204,7 +206,7 @@ class Stats(object):
                     and package.private = 'f' \
                     group by package.owner_org \
                     order by count(*) desc;").fetchall()
-            return [(model.Session.query(model.Group).get(unicode(group_id)),
+            return [(model.Session.query(model.Group).get(str(group_id)),
                      val) for group_id, val in res]
 
         if cache_enabled:
@@ -228,7 +230,7 @@ class Stats(object):
                      .order_by(func.count(model.Package.creator_user_id).desc())\
                      .limit(limit).all()
             user_count = [
-                (model.Session.query(model.User).get(unicode(user_id)), count)
+                (model.Session.query(model.User).get(str(user_id)), count)
                 for user_id, count in userid_count if user_id
             ]
             return user_count
@@ -295,8 +297,8 @@ class Stats(object):
                 "        inner join \"user\" on member.table_id = \"user\".id"
                 "        where capacity is not null and \"group\".type = 'organization' and member.state='active' order by sysadmin, \"group\".name, capacity;"
             ).fetchall()
-            return [(model.Session.query(model.Group).get(unicode(org)),
-                     model.Session.query(model.User).get(unicode(user_id)),
+            return [(model.Session.query(model.Group).get(str(org)),
+                     model.Session.query(model.User).get(str(user_id)),
                      role, sysadmin) for (org, user_id, role, sysadmin) in res]
 
         if cache_enabled:
@@ -319,7 +321,7 @@ class Stats(object):
                 " left OUTER JOIN (select max(timestamp) last_active,user_id from activity group by user_id) a on \"user\".id = a.user_id "\
                 " left outer join \"group\" on member.group_id = \"group\".id  where sysadmin = 't' or (capacity is not null and member.state = 'active')"\
                 " group by \"user\".id ,sysadmin,capacity order by max(last_active) desc;").fetchall()
-            return [(model.Session.query(model.User).get(unicode(user_id)),
+            return [(model.Session.query(model.User).get(str(user_id)),
                      sysadmin, role, last_active, orgs)
                     for (user_id, sysadmin, role, last_active, orgs) in res]
 
@@ -350,16 +352,16 @@ class Stats(object):
             r = []
             for timestamp, package_id, user_id, maintainer in result:
                 package = model.Session.query(model.Package).get(
-                    unicode(package_id))
+                    str(package_id))
                 if user_id:
                     user = model.Session.query(model.User).get(
-                        unicode(user_id))
+                        str(user_id))
                 else:
-                    user = model.User.by_name(unicode(maintainer))
+                    user = model.User.by_name(str(maintainer))
                 if package.owner_org:
                     r.append((datetime2date(timestamp), package,
                               model.Session.query(model.Group).get(
-                                  unicode(package.owner_org)), user))
+                                  str(package.owner_org)), user))
                 else:
                     r.append((datetime2date(timestamp), package, None, user))
             return r
@@ -392,17 +394,17 @@ class Stats(object):
             r = []
             for timestamp, package_id, user_id in result:
                 package = model.Session.query(model.Package).get(
-                    unicode(package_id))
+                    str(package_id))
                 if package.owner_org:
                     r.append((timestamp, package,
                               model.Session.query(model.Group).get(
-                                  unicode(package.owner_org)),
+                                  str(package.owner_org)),
                               model.Session.query(model.User).get(
-                                  unicode(user_id))))
+                                  str(user_id))))
                 else:
                     r.append((timestamp, package, None,
                               model.Session.query(model.User).get(
-                                  unicode(user_id))))
+                                  str(user_id))))
             return r
 
         if cache_enabled:
