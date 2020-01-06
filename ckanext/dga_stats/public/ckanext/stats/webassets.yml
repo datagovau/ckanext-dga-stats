@@ -1,0 +1,16 @@
+stats_css:
+  output: ckanext-dga_stats/%(version)s_stats.css
+  contents:
+    - css/stats.css
+
+stats_js:
+  output: ckanext-dga_stats/%(version)s_stats.js
+  filter: rjsmin
+  contents:
+    - vendor/excanvas.js
+    - vendor/jquery.flot.js
+    - javascript/modules/plot.js
+    - javascript/modules/stats-nav.js
+    - javascript/modules/tableExport.js
+    - javascript/modules/jquery.base64.js
+    - javascript/modules/FileSaver.js
