@@ -134,7 +134,6 @@ class Stats(object):
 
     @classmethod
     def res_by_org(cls, limit=10):
-
         def fetch_res_by_org():
             connection = model.Session.connection()
             reses = connection.execute("select owner_org,format,count(*) from \
@@ -222,7 +221,6 @@ class Stats(object):
 
     @classmethod
     def summary_stats(cls):
-
         def fetch_summary_stats():
             connection = model.Session.connection()
 

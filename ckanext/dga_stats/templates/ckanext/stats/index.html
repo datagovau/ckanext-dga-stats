@@ -382,7 +382,7 @@
         <li class="nav-item"><a href="#stats-by-org" data-toggle="tab">{{ _('Datasets by Organization') }}</a></li>
         <li class="nav-item"><a href="#stats-res-by-org" data-toggle="tab">{{ _('Resources by Organization') }}</a></li>
         <li class="nav-item"><a href="#stats-activity-org" data-toggle="tab">{{ _('Most Active Organisations') }}</a></li>
-        <li class="nav-item"><a href="/site-usage">Site Analytics</a></li>
+        <li class="nav-item"><a href="{{ h.url_for_static_or_external('/site-usage') }}">Site Analytics</a></li>
         <li class="nav-item active"><a href="#stats-summary" data-toggle="tab">{{ _('Summary') }}</a></li>
       </ul>
     </nav>
